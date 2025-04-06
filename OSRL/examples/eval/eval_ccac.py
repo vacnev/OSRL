@@ -68,7 +68,7 @@ def eval(args: EvalConfig):
         episode_len=cfg["episode_len"],
         device=args.device,
     )
-    ccac_model.load_state_dict(model["model_state"])
+    ccac_model.load_state_dict(model["model_state"], strict=False)
     ccac_model.to(args.device)
 
     trainer = CCACTrainer(ccac_model,

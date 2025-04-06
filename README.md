@@ -23,7 +23,7 @@ cd ../DSRL
 pip install -e .
 ```
 
-## Training
+## Training (optional)
 
 To train a CCAC agent, simply run:
 ``` bash
@@ -35,6 +35,7 @@ The default parameters can be found in `OSRL/examples/configs/ccac_configs.py`.
 
 ## Evaluation
 
+**The pre-trained models are available [here](https://drive.google.com/drive/folders/1cM7tr5My-wkzl0uxepyb99G_XESTm3TJ?usp=sharing).**
 To evaluate a trained CCAC agent, simply run:
 ``` bash
 cd OSRL/examples/eval
