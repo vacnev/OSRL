@@ -1,0 +1,17 @@
+# Install local DSRL with MetaDrive support
+-e ./DSRL
+
+# Install local OSRL
+-e ./OSRL
+
+# Additional packages (numpy pre-installed in Dockerfile)
+OApackage==2.7.6
+
+
+# add common ML libraries
+matplotlib
+pandas
+scikit-learn
+seaborn
+
+

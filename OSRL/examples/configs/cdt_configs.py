@@ -41,17 +41,17 @@ class CDTTrainConfig:
     lr_warmup_steps: int = 500
     reward_scale: float = 0.1
     cost_scale: float = 1
-    num_workers: int = 4
+    num_workers: int = 8
     # evaluation params
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((450.0, 5), (500.0, 10))  # reward, cost
+                          ...] = ((450.0, 10), (500.0, 20), (550.0, 50))  # reward, cost
     cost_limit: int = 5
     eval_episodes: int = 10
     eval_every: int = 10_000
     # general params
     seed: int = 0
     device: str = "cuda:2"
-    threads: int = 4
+    threads: int = 6
     # augmentation param
     deg: int = 4
     pf_sample: bool = False
@@ -111,7 +111,7 @@ class CDTAntRunConfig(CDTTrainConfig):
     # training params
     task: str = "OfflineAntRun-v0"
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((700.0, 5), (750.0, 10))
+                          ...] = ((700.0, 10), (750.0, 20), (800.0, 40))
     # augmentation param
     deg: int = 3
     max_reward: float = 1000.0
@@ -127,7 +127,7 @@ class CDTDroneRunConfig(CDTTrainConfig):
     # training params
     task: str = "OfflineDroneRun-v0"
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((400.0, 5), (500.0, 10))
+                          ...] = ((400.0, 10), (500.0, 20), (600.0, 40))
     # augmentation param
     deg: int = 1
     max_reward: float = 700.0
@@ -144,7 +144,7 @@ class CDTDroneCircleConfig(CDTTrainConfig):
     # training params
     task: str = "OfflineDroneCircle-v0"
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((700.0, 5), (750.0, 10))
+                          ...] = ((700.0, 10), (750.0, 20), (800.0, 40))
     update_steps: int = 300_000
     # augmentation param
     deg: int = 1
@@ -162,7 +162,7 @@ class CDTCarRunConfig(CDTTrainConfig):
     # training params
     task: str = "OfflineCarRun-v0"
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((575.0, 5), (575.0, 10))
+                          ...] = ((575.0, 10), (575.0, 20), (575.0, 40))
     update_steps: int = 100_000
     # augmentation param
     deg: int = 0
@@ -180,7 +180,7 @@ class CDTAntCircleConfig(CDTTrainConfig):
     # training params
     task: str = "OfflineAntCircle-v0"
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((300.0, 5), (350.0, 10))
+                          ...] = ((300.0, 10), (350.0, 20), (400.0, 40))
     # augmentation param
     deg: int = 2
     max_reward: float = 500.0
@@ -197,7 +197,7 @@ class CDTBallRunConfig(CDTTrainConfig):
     # training params
     task: str = "OfflineBallRun-v0"
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((500.0, 5), (500.0, 10))
+                          ...] = ((500.0, 10), (500.0, 20), (700.0, 40))
     # augmentation param
     deg: int = 2
     max_reward: float = 1400.0
@@ -214,7 +214,7 @@ class CDTBallCircleConfig(CDTTrainConfig):
     # training params
     task: str = "OfflineBallCircle-v0"
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((700.0, 5), (750.0, 10))
+                          ...] = ((700.0, 10), (750.0, 20), (800.0, 40))
     # augmentation param
     deg: int = 2
     max_reward: float = 1000.0

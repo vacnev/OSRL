@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import random
 import uuid
+from datetime import datetime
 from typing import Dict, Optional, Sequence
 
 import numpy as np
@@ -147,5 +148,6 @@ def auto_name(default_cfg: dict,
         name = name + "_" + suffix if len(name) else suffix
 
     name = "default" if not len(name) else name
-    name = f"{name}-{str(uuid.uuid4())[:4]}"
+    timestamp = datetime.now().strftime("%m%d-%H%M%S")
+    name = f"{name}-{timestamp}"
     return name

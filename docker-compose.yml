@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  osrl:
+    build: .
+    image: osrl:latest
+    container_name: OSRL
+    volumes:
+      - .:/workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    environment:
+      - DSRL_DATASET_DIR=/workspace/DSRL/datasets
+    network_mode: host
