@@ -145,3 +145,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# checkpoints
+osrl/checkpoints/
+osrl/CCAC_pretrained_models/
