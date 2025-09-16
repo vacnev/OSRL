@@ -510,7 +510,7 @@ class CDTTrainer:
 
             episode_ret += reward
             episode_len += 1
-            episode_cost += info["cost"]
+            episode_cost += info["cost"] * self.cost_scale
 
             if terminated or truncated:
                 break

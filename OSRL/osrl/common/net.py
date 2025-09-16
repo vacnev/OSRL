@@ -242,18 +242,18 @@ class EnsembleQCritic(nn.Module):
         num_q (float): The number of Q networks to include in the ensemble.
     '''
 
-    def __init__(self, obs_dim, act_dim, hidden_sizes, activation, 
+    def __init__(self, obs_dim, act_dim, hidden_sizes, activation=nn.ReLU, 
                  cost_conditioned=False, num_q=2):
         super().__init__()
         assert num_q >= 1, "num_q param should be greater than 1"
         if cost_conditioned:
             self.q_nets = nn.ModuleList([
-                mlp([obs_dim + act_dim + 1] + list(hidden_sizes) + [1], nn.ReLU)
+                mlp([obs_dim + act_dim + 1] + list(hidden_sizes) + [1], activation)
                 for i in range(num_q)
             ])
         else:
             self.q_nets = nn.ModuleList([
-                mlp([obs_dim + act_dim] + list(hidden_sizes) + [1], nn.ReLU)
+                mlp([obs_dim + act_dim] + list(hidden_sizes) + [1], activation)
                 for i in range(num_q)
             ])
 
