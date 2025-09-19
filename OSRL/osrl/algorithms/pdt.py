@@ -43,11 +43,10 @@ class PDT(nn.Module):
         target_entropy (float): The target entropy value for stochastic actions.
         num_qr (int): Number of Q functions to use in the reward critic.
         num_qc (int): Number of Q functions to use in the cost critic.
-        qr_weight (float): Weight for the reward critic loss (improvement).
-        qc_weight (float): Weight for the cost critic loss (verification).
         c_hidden_sizes (Tuple[int, ...]): Hidden layer sizes for the critics.
         tau (float): Target network update rate.
-        n_step (bool): Whether to use n-step returns.
+        gamma (float): Discount factor for future rewards.
+        use_verification (bool): Whether to use verification critic.
     """
 
     def __init__(
@@ -76,11 +75,10 @@ class PDT(nn.Module):
         target_entropy=None,
         num_qr: int = 4,
         num_qc: int = 4,
-        qr_weight: float = 1.0,
-        qc_weight: float = 1.0,
         c_hidden_sizes: Tuple[int, ...] = (512, 512, 512),
         tau: float = 0.005,
-        n_step: bool = True,
+        gamma: float = 0.99,
+        use_verification: bool = True,
     ):
         super().__init__()
         self.seq_len = seq_len
@@ -98,7 +96,8 @@ class PDT(nn.Module):
         self.cat_cost_feat = cat_cost_feat
         self.stochastic = stochastic
         self.tau = tau
-        self.n_step = n_step
+        self.gamma = gamma
+        self.use_verification = use_verification
 
         self.emb_drop = nn.Dropout(embedding_dropout)
         self.emb_norm = nn.LayerNorm(embedding_dim)
@@ -320,8 +319,12 @@ class PDTTrainer:
         cost_scale (float): The scaling factor for the constraint cost.
         loss_cost_weight (float): The weight for the cost loss.
         loss_state_weight (float): The weight for the state loss.
+        qr_weight (float): Weight for the reward critic loss (improvement).
+        qc_weight (float): Weight for the cost critic loss (verification).
         cost_reverse (bool): Whether to reverse the cost.
         no_entropy (bool): Whether to use entropy.
+        n_step (bool): Whether to use n-step returns.
+        use_verification (bool): Whether to use verification critic.
         device (str): The device to use for training (e.g. "cpu" or "cuda").
 
     """
@@ -342,8 +345,11 @@ class PDTTrainer:
             cost_scale: float = 1.0,
             loss_cost_weight: float = 0.0,
             loss_state_weight: float = 0.0,
+            qr_weight: float = 1.0,
+            qc_weight: float = 1.0,
             cost_reverse: bool = False,
             no_entropy: bool = False,
+            n_step: bool = True,
             device="cpu") -> None:
         self.model = model
         self.logger = logger
@@ -354,8 +360,11 @@ class PDTTrainer:
         self.device = device
         self.cost_weight = loss_cost_weight
         self.state_weight = loss_state_weight
+        self.qr_weight = qr_weight
+        self.qc_weight = qc_weight
         self.cost_reverse = cost_reverse
         self.no_entropy = no_entropy
+        self.n_step = n_step
 
         self.actor_optim = torch.optim.AdamW(
             self.model.parameters(),
@@ -363,7 +372,7 @@ class PDTTrainer:
             weight_decay=weight_decay,
             betas=betas,
         )
-        self.scheduler = torch.optim.lr_scheduler.LambdaLR(
+        self.actor_scheduler = torch.optim.lr_scheduler.LambdaLR(
             self.actor_optim,
             lambda steps: min((steps + 1) / lr_warmup_steps, 1),
         )
@@ -400,7 +409,7 @@ class PDTTrainer:
                        costs):
         # True value indicates that the corresponding key value will be ignored
         padding_mask = ~mask.to(torch.bool)
-        action_preds, cost_preds, state_preds = self.model(
+        action_preds, cost_preds, state_preds = self.model.actor_forward(
             states=states,
             actions=actions,
             returns_to_go=returns,
@@ -408,6 +417,102 @@ class PDTTrainer:
             time_steps=time_steps,
             padding_mask=padding_mask,
         )
+        seq_len = states.shape[1]
+        batch_size = states.shape[0]
+        # find last valid index for each sequence
+        last_idxs = mask.sum(dim=1) - 1  # [batch_size]
+        batch_idxs = torch.arange(len(last_idxs), device=self.device)
+
+        if self.stochastic:
+            action_preds_mean = action_preds.mean
+        else:
+            action_preds_mean = action_preds
+
+        # CRITIC LOSS
+        sc = torch.cat([states, costs_return.unsqueeze(-1)], dim=-1)
+        current_qrs = self.model.critic(sc, actions)
+        current_qrs = torch.stack(current_qrs, dim=0)  # [num_qr, batch_size, seq_len]
+        current_qcs = self.model.cost_critic(sc, actions)
+        current_qcs = torch.stack(current_qcs, dim=0)  # [num_qc, batch_size, seq_len]
+
+        # compute discounted n-step returns
+        rewards = returns[:, :-1] - returns[:, 1:]  # r_t = R_t - R_{t+1}
+        rewards = torch.cat([rewards, torch.zeros(batch_size, 1, device=self.device)], dim=1)
+        if self.n_step:
+            last_sc = sc[batch_idxs, last_idxs]  # [batch_size, state_dim + 1]
+            last_action = action_preds_mean[batch_idxs, last_idxs]  # [batch_size, action_dim]
+            target_qr, _ = self.model.critic_target.predict(last_sc, last_action) # [batch_size]
+            target_qc, _ = self.model.cost_critic_target.predict(last_sc, last_action) # [batch_size]
+
+            # zero the last cost for n-step as it is already included in the target Q
+            costs_ = costs.clone()
+            costs_[batch_idxs, last_idxs] = 0.
+
+            mask_ = mask.sum(dim=1).detach().cpu() # [batch_size]
+            discount = [torch.arange(i) for i in mask_]
+            discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
+            discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
+            rewards = rewards * discount  # [batch_size, seq_len]
+            costs_ = costs_ * discount  # [batch_size, seq_len]
+            n_rews = torch.cumsum(rewards.flip(dims=[1]), dim=1).flip(dims=[1])  # [batch_size, seq_len]
+            n_costs = torch.cumsum(costs_.flip(dims=[1]), dim=1).flip(dims=[1])  # [batch_size, seq_len]
+
+            # reweight for correct discounting
+            n_rews = n_rews / discount
+            n_costs = n_costs / discount
+
+            # add target Q for bootstrap
+            discount = [i - 1 - torch.arange(i) for i in mask_]
+            discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
+            discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
+            target_qr = (n_rews + target_qr * discount).detach()  # [batch_size, seq_len]
+            target_qc = (n_costs + target_qc * discount).detach()  # [batch_size, seq_len]
+        else:
+            target_qr, _ = self.model.critic_target.predict(sc, action_preds_mean) # [batch_size, seq_len]
+            target_qc, _ = self.model.cost_critic_target.predict(sc, action_preds_mean) # [batch_size, seq_len]
+            target_qr = rewards[:, :-1] + self.model.gamma * target_qr[:, 1:]  # [batch_size, seq_len - 1]
+            target_qc = rewards[:, :-1] + self.model.gamma * target_qc[:, 1:]  # [batch_size, seq_len - 1]
+            target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1)
+            target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1)
+
+        target_qr = target_qr.unsqueeze(0).expand_as(current_qrs).detach()  # [num_qr, batch_size, seq_len]
+        target_qc = target_qc.unsqueeze(0).expand_as(current_qcs).detach()  # [num_qc, batch_size, seq_len]
+
+        # mask out last valid index in each sequence
+        mask_ = mask.clone()
+        mask_[batch_idxs, last_idxs] = 0
+        mask_ = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
+
+        critic_loss = F.mse_loss(current_qrs[mask_ > 0], target_qr[mask_ > 0])
+        cost_critic_loss = F.mse_loss(current_qcs[mask_ > 0], target_qc[mask_ > 0])
+
+        self.critic_optim.zero_grad()
+        critic_loss.backward()
+        if self.clip_grad is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad)
+        self.critic_optim.step()
+        self.cost_critic_optim.zero_grad()
+        cost_critic_loss.backward()
+        if self.clip_grad is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad)
+        self.cost_critic_optim.step()
+
+        self.model.sync_target_networks()
+
+        # ACTOR LOSS
+
+        # cost_preds: [batch_size * seq_len, 2], costs: [batch_size * seq_len]
+        cost_preds = cost_preds.reshape(-1, 2)
+        costs = costs.flatten().long().detach()
+        cost_loss = F.nll_loss(cost_preds, costs, reduction="none")
+        # cost_loss = F.mse_loss(cost_preds, costs.detach(), reduction="none")
+        cost_loss = (cost_loss * mask.flatten()).mean()
+        # compute the accuracy, 0 value, 1 indice, [batch_size, seq_len]
+        pred = cost_preds.data.max(dim=1)[1]
+        correct = pred.eq(costs.data.view_as(pred)) * mask.flatten()
+        correct = correct.sum()
+        total_num = mask.sum()
+        acc = correct / total_num
 
         if self.stochastic:
             log_likelihood = action_preds.log_prob(actions)[mask > 0].mean()
@@ -427,18 +532,6 @@ class PDTTrainer:
             # [batch_size, seq_len, action_dim] * [batch_size, seq_len, 1]
             act_loss = (act_loss * mask.unsqueeze(-1)).mean()
 
-        # cost_preds: [batch_size * seq_len, 2], costs: [batch_size * seq_len]
-        cost_preds = cost_preds.reshape(-1, 2)
-        costs = costs.flatten().long().detach()
-        cost_loss = F.nll_loss(cost_preds, costs, reduction="none")
-        # cost_loss = F.mse_loss(cost_preds, costs.detach(), reduction="none")
-        cost_loss = (cost_loss * mask.flatten()).mean()
-        # compute the accuracy, 0 value, 1 indice, [batch_size, seq_len]
-        pred = cost_preds.data.max(dim=1)[1]
-        correct = pred.eq(costs.data.view_as(pred)) * mask.flatten()
-        correct = correct.sum()
-        total_num = mask.sum()
-        acc = correct / total_num
 
         # [batch_size, seq_len, state_dim]
         state_loss = F.mse_loss(state_preds[:, :-1],
@@ -447,6 +540,20 @@ class PDTTrainer:
         state_loss = (state_loss * mask[:, :-1].unsqueeze(-1)).mean()
 
         loss = act_loss + self.cost_weight * cost_loss + self.state_weight * state_loss
+
+        # PF improvement
+        qr_preds, _ = self.model.critic.predict(sc, action_preds_mean) # [batch_size, seq_len]
+        qr_preds = qr_preds[mask > 0]
+        qr_loss = -qr_preds.mean() / qr_preds.abs().mean().detach()
+        loss += self.qr_weight * qr_loss
+
+        # verification
+        qc_preds, _ = self.model.cost_critic.predict(sc, action_preds_mean) # [batch_size, seq_len]
+        qc_preds = qc_preds[mask > 0]
+        qc_loss = qc_preds.mean() / qc_preds.abs().mean().detach()
+
+        if self.model.use_verification:
+            loss += self.qc_weight * qc_loss
 
         self.actor_optim.zero_grad()
         loss.backward()
@@ -461,7 +568,7 @@ class PDTTrainer:
             temperature_loss.backward()
             self.log_temperature_optimizer.step()
 
-        self.scheduler.step()
+        self.actor_scheduler.step()
         self.critic_scheduler.step()
         self.cost_critic_scheduler.step()
         self.logger.store(
@@ -471,9 +578,13 @@ class PDTTrainer:
             cost_loss=cost_loss.item(),
             cost_acc=acc.item(),
             state_loss=state_loss.item(),
-            train_lr=self.scheduler.get_last_lr()[0],
+            train_lr=self.actor_scheduler.get_last_lr()[0],
             critic_lr=self.critic_scheduler.get_last_lr()[0],
             cost_critic_lr=self.cost_critic_scheduler.get_last_lr()[0],
+            critic_loss=critic_loss.item(),
+            cost_critic_loss=cost_critic_loss.item(),
+            qr_loss=qr_loss.item(),
+            qc_loss=qc_loss.item(),
         )
 
     def evaluate(self, num_rollouts, target_return, target_cost):
