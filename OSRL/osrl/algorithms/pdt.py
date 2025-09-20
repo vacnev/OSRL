@@ -37,7 +37,6 @@ class PDT(nn.Module):
         mul_cost_feat (bool): Whether to multiply cost features.
         cat_cost_feat (bool): Whether to concatenate cost features.
         action_head_layers (int): The number of layers in the action head.
-        cost_prefix (bool): Whether to include a cost prefix.
         stochastic (bool): Whether to use stochastic actions.
         init_temperature (float): The initial temperature value for stochastic actions.
         target_entropy (float): The target entropy value for stochastic actions.
@@ -47,6 +46,7 @@ class PDT(nn.Module):
         tau (float): Target network update rate.
         gamma (float): Discount factor for future rewards.
         use_verification (bool): Whether to use verification critic.
+        infer_q (bool): Whether to use Q value during inference.
     """
 
     def __init__(
@@ -79,6 +79,7 @@ class PDT(nn.Module):
         tau: float = 0.005,
         gamma: float = 0.99,
         use_verification: bool = True,
+        infer_q: bool = True,
     ):
         super().__init__()
         self.seq_len = seq_len
@@ -98,6 +99,7 @@ class PDT(nn.Module):
         self.tau = tau
         self.gamma = gamma
         self.use_verification = use_verification
+        self.infer_q = infer_q
 
         self.emb_drop = nn.Dropout(embedding_dropout)
         self.emb_norm = nn.LayerNorm(embedding_dim)
@@ -122,11 +124,6 @@ class PDT(nn.Module):
             self.seq_repeat += 1
 
         dt_seq_len = self.seq_repeat * seq_len
-
-        self.cost_prefix = cost_prefix
-        if self.cost_prefix:
-            self.prefix_emb = nn.Linear(1, embedding_dim)
-            dt_seq_len += 1
 
         self.blocks = nn.ModuleList([
             TransformerBlock(
@@ -296,10 +293,71 @@ class PDT(nn.Module):
             costs_to_go: torch.Tensor,  # [batch_size, seq_len]
             time_steps: torch.Tensor,  # [batch_size, seq_len]
             padding_mask: Optional[torch.Tensor] = None,  # [batch_size, seq_len]
+            logger: Optional[WandbLogger] = None,
+            n_repeats: int = 50,
     ) -> torch.FloatTensor:
-        pass
+        batch_size = returns_to_go.shape[0]
+        states = states.repeat_interleave(repeats=n_repeats, dim=0)
+        actions = actions.repeat_interleave(repeats=n_repeats, dim=0)
+        costs_to_go = costs_to_go.repeat_interleave(repeats=n_repeats, dim=0)
+        time_steps = time_steps.repeat_interleave(repeats=n_repeats, dim=0)
+        if padding_mask is not None:
+            padding_mask = padding_mask.repeat_interleave(repeats=n_repeats, dim=0)
 
+        batch_repeats = n_repeats // batch_size
+        returns_to_go = returns_to_go.repeat_interleave(repeats=batch_repeats, dim=0)
+        returns_to_go = torch.cat([returns_to_go, torch.randn((n_repeats - returns_to_go.shape[0], returns_to_go.shape[1]), device=returns_to_go.device)], dim=0)
 
+        # Uniform distribution perturbation for diversity
+        slack = 0.05
+        for i in range(batch_size):
+            target_return = returns_to_go[i * batch_repeats, -1]
+            low, high = target_return * (1 - slack), target_return * (1 + slack)
+            returns_to_go[i * batch_repeats + 1:(i + 1) * batch_repeats, -1] = torch.rand((batch_repeats - 1), device=returns_to_go.device) * (high - low) + low
+
+        # Add Q RTG action
+
+        # predict from second to last, last one is dummy, check that we are not on the first step
+        sc = torch.cat([states[-1:, -2], costs_to_go[-1:, -2].unsqueeze(-1)], dim=-1)
+        last_rew = returns_to_go[0, -2] - returns_to_go[0, -1]
+        returns_to_go[-1, -1], _ = (self.critic.predict(sc, actions[-1:, -2])[0] - last_rew) / self.gamma
+
+        action_preds, _, _ = self.actor_forward(states, actions, returns_to_go, costs_to_go, time_steps, padding_mask)
+
+        if self.stochastic:
+            action_preds = action_preds.mean
+
+        states_rpt = states[:, -1, :]
+        action_preds = action_preds[:, -1, :]
+
+        q_vals = self.critic.predict(states_rpt, action_preds)[0].flatten()
+        qc_vals = self.cost_critic.predict(states_rpt, action_preds)[0].flatten()
+
+        # Verification filtering to filter out unsafe actions
+        if self.use_verification:
+            safe_mask = (qc_vals <= costs_to_go[0, -1])
+            if safe_mask.sum() > 0:
+                q_vals = q_vals[safe_mask]
+                action_preds = action_preds[safe_mask]
+            logger.store(
+                tab="eval",
+                safe_actions_count=safe_mask.sum().item(),
+                total_actions=len(safe_mask),
+            )
+
+        idx = torch.multinomial(F.softmax(q_vals, dim=-1), 1)
+
+        logger.store(
+            tab="eval",
+            q_infer_diff=(q_vals[idx] - q_vals[0]).item(),
+        )
+
+        if self.infer_q:
+            return action_preds[idx]
+        else:
+            return action_preds[0]
+
+        
 
 class PDTTrainer:
     """
@@ -587,7 +645,7 @@ class PDTTrainer:
             qc_loss=qc_loss.item(),
         )
 
-    def evaluate(self, num_rollouts, target_return, target_cost):
+    def evaluate(self, num_rollouts, target_returns, target_cost):
         """
         Evaluates the performance of the model on a number of episodes.
         """
@@ -595,7 +653,7 @@ class PDTTrainer:
         episode_rets, episode_costs, episode_lens = [], [], []
         for _ in trange(num_rollouts, desc="Evaluating...", leave=False):
             epi_ret, epi_len, epi_cost = self.rollout(self.model, self.env,
-                                                      target_return, target_cost)
+                                                      target_returns, target_cost)
             episode_rets.append(epi_ret)
             episode_lens.append(epi_len)
             episode_costs.append(epi_cost)
@@ -608,9 +666,9 @@ class PDTTrainer:
         self,
         model: PDT,
         env: gym.Env,
-        target_return: float,
+        target_returns: list[float],
         target_cost: float,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[float, int, float]:
         """
         Evaluates the performance of the model on a single episode.
         """
@@ -624,7 +682,7 @@ class PDTTrainer:
                               model.action_dim,
                               dtype=torch.float,
                               device=self.device)
-        returns = torch.zeros(1,
+        returns = torch.zeros(len(target_returns),
                               model.episode_len + 1,
                               dtype=torch.float,
                               device=self.device)
@@ -639,12 +697,8 @@ class PDTTrainer:
 
         obs, info = env.reset()
         states[:, 0] = torch.as_tensor(obs, device=self.device)
-        returns[:, 0] = torch.as_tensor(target_return, device=self.device)
+        returns[:, 0] = torch.as_tensor(target_returns, device=self.device)
         costs[:, 0] = torch.as_tensor(target_cost, device=self.device)
-
-        epi_cost = torch.tensor(np.array([target_cost]),
-                                dtype=torch.float,
-                                device=self.device)
 
         # cannot step higher than model episode len, as timestep embeddings will crash
         episode_ret, episode_cost, episode_len = 0.0, 0.0, 0
@@ -658,7 +712,7 @@ class PDTTrainer:
             c = costs[:, :step + 1][:, -model.seq_len:]  # noqa
             t = time_steps[:, :step + 1][:, -model.seq_len:]  # noqa
 
-            acts, _, _ = model(s, a, r, c, t, None)
+            acts, _, _ = model.get_action(s, a, r, c, t, None, self.logger)
             if self.stochastic:
                 acts = acts.mean
             acts = acts.clamp(-self.max_action, self.max_action)
