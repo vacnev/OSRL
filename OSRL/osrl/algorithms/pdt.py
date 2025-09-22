@@ -666,7 +666,7 @@ class PDTTrainer:
         self,
         model: PDT,
         env: gym.Env,
-        target_returns: list[float],
+        target_returns: np.ndarray,
         target_cost: float,
     ) -> Tuple[float, int, float]:
         """

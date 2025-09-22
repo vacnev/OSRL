@@ -5,3 +5,4 @@ from .cdt import CDT, CDTTrainer
 from .coptidice import COptiDICE, COptiDICETrainer
 from .cpq import CPQ, CPQTrainer
 from .ccac import CCAC, CCACTrainer
+from .pdt import PDT, PDTTrainer

@@ -15,23 +15,23 @@ from fsrl.utils import WandbLogger
 from torch.utils.data import DataLoader
 from tqdm.auto import trange  # noqa
 
-from examples.configs.cdt_configs import CDT_DEFAULT_CONFIG, CDTTrainConfig
-from osrl.algorithms import CDT, CDTTrainer
+from examples.configs.pdt_configs import PDT_DEFAULT_CONFIG, PDTTrainConfig
+from osrl.algorithms import PDT, PDTTrainer
 from osrl.common import SequenceDataset
 from osrl.common.exp_util import auto_name, seed_all
 
 
 @pyrallis.wrap()
-def train(args: CDTTrainConfig):
+def train(args: PDTTrainConfig):
     # update config
-    cfg, old_cfg = asdict(args), asdict(CDTTrainConfig())
+    cfg, old_cfg = asdict(args), asdict(PDTTrainConfig())
     differing_values = {key: cfg[key] for key in cfg.keys() if cfg[key] != old_cfg[key]}
-    cfg = asdict(CDT_DEFAULT_CONFIG[args.task]())
+    cfg = asdict(PDT_DEFAULT_CONFIG[args.task]())
     cfg.update(differing_values)
     args = types.SimpleNamespace(**cfg)
 
     # setup logger
-    default_cfg = asdict(CDT_DEFAULT_CONFIG[args.task]())
+    default_cfg = asdict(PDT_DEFAULT_CONFIG[args.task]())
     if args.name is None:
         args.name = auto_name(default_cfg, cfg, args.prefix, args.suffix)
     if args.group is None:
@@ -84,7 +84,7 @@ def train(args: CDTTrainConfig):
     env = OfflineEnvWrapper(env)
 
     # model & optimizer & scheduler setup
-    model = CDT(
+    model = PDT(
         state_dim=env.observation_space.shape[0],
         action_dim=env.action_space.shape[0],
         max_action=env.action_space.high[0],
@@ -104,10 +104,16 @@ def train(args: CDTTrainConfig):
         mul_cost_feat=args.mul_cost_feat,
         cat_cost_feat=args.cat_cost_feat,
         action_head_layers=args.action_head_layers,
-        cost_prefix=args.cost_prefix,
         stochastic=args.stochastic,
         init_temperature=args.init_temperature,
         target_entropy=-env.action_space.shape[0],
+        num_qr=args.num_qr,
+        num_qc=args.num_qc,
+        c_hidden_sizes=args.c_hidden_sizes,
+        tau=args.tau,
+        gamma=args.gamma,
+        use_verification=args.use_verification,
+        infer_q=args.infer_q,
     ).to(args.device)
     print(f"Total parameters: {sum(p.numel() for p in model.parameters())}")
 
@@ -117,10 +123,11 @@ def train(args: CDTTrainConfig):
     logger.setup_checkpoint_fn(checkpoint_fn)
 
     # trainer
-    trainer = CDTTrainer(model,
+    trainer = PDTTrainer(model,
                          env,
                          logger=logger,
-                         learning_rate=args.learning_rate,
+                         actor_lr=args.actor_lr,
+                         critic_lr=args.critic_lr,
                          weight_decay=args.weight_decay,
                          betas=args.betas,
                          clip_grad=args.clip_grad,
@@ -129,8 +136,11 @@ def train(args: CDTTrainConfig):
                          cost_scale=args.cost_scale,
                          loss_cost_weight=args.loss_cost_weight,
                          loss_state_weight=args.loss_state_weight,
+                         qr_weight=args.qr_weight,
+                         qc_weight=args.qc_weight,
                          cost_reverse=args.cost_reverse,
                          no_entropy=args.no_entropy,
+                         n_step=args.n_step,
                          device=args.device)
 
     ct = lambda x: 70 - x if args.linear else 1 / (x + 10)
@@ -185,27 +195,27 @@ def train(args: CDTTrainConfig):
             b.to(args.device) for b in batch
         ]
         trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
-                               episode_cost, costs)
+                               costs)
 
         # evaluation
         if (step + 1) % args.eval_every == 0 or step == args.update_steps - 1:
             average_reward, average_cost = [], []
             log_cost, log_reward, log_len = {}, {}, {}
             for target_return in args.target_returns:
-                reward_return, cost_return = target_return
+                reward_returns, cost_return = target_return
                 if args.cost_reverse:
                     # critical step, rescale the return!
                     ret, cost, length = trainer.evaluate(
-                        args.eval_episodes, reward_return * args.reward_scale,
+                        args.eval_episodes, np.array(reward_returns) * args.reward_scale,
                         (args.episode_len - cost_return) * args.cost_scale)
                 else:
                     ret, cost, length = trainer.evaluate(
-                        args.eval_episodes, reward_return * args.reward_scale,
+                        args.eval_episodes, np.array(reward_returns) * args.reward_scale,
                         cost_return * args.cost_scale)
                 average_cost.append(cost)
                 average_reward.append(ret)
 
-                name = "c_" + str(int(cost_return)) + "_r_" + str(int(reward_return))
+                name = "c_" + str(int(cost_return)) + "_r_" + str(int(reward_returns[0]))
                 log_cost.update({name: cost})
                 log_reward.update({name: ret})
                 log_len.update({name: length})

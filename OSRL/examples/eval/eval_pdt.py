@@ -8,7 +8,7 @@ import torch
 from dsrl.offline_env import OfflineEnvWrapper, wrap_env  # noqa
 from pyrallis import field
 
-from osrl.algorithms import CDT, CDTTrainer
+from osrl.algorithms import PDT, PDTTrainer
 from osrl.common.exp_util import load_config_and_model, seed_all
 
 
@@ -47,7 +47,7 @@ def eval(args: EvalConfig):
     target_entropy = -env.action_space.shape[0]
 
     # model & optimizer & scheduler setup
-    cdt_model = CDT(
+    PDT_model = PDT(
         state_dim=env.observation_space.shape[0],
         action_dim=env.action_space.shape[0],
         max_action=env.action_space.high[0],
@@ -67,15 +67,21 @@ def eval(args: EvalConfig):
         mul_cost_feat=cfg["mul_cost_feat"],
         cat_cost_feat=cfg["cat_cost_feat"],
         action_head_layers=cfg["action_head_layers"],
-        cost_prefix=cfg["cost_prefix"],
         stochastic=cfg["stochastic"],
         init_temperature=cfg["init_temperature"],
         target_entropy=target_entropy,
+        num_qr=cfg["num_qr"],
+        num_qc=cfg["num_qc"],
+        c_hidden_sizes=cfg["c_hidden_sizes"],
+        tau=cfg["tau"],
+        gamma=cfg["gamma"],
+        use_verification=cfg["use_verification"],
+        infer_q=cfg["infer_q"],
     )
-    cdt_model.load_state_dict(model["model_state"])
-    cdt_model.to(args.device)
+    PDT_model.load_state_dict(model["model_state"])
+    PDT_model.to(args.device)
 
-    trainer = CDTTrainer(cdt_model,
+    trainer = PDTTrainer(PDT_model,
                          env,
                          reward_scale=cfg["reward_scale"],
                          cost_scale=cfg["cost_scale"],
@@ -90,7 +96,7 @@ def eval(args: EvalConfig):
     for target_ret, target_cost in zip(rets, costs):
         seed_all(cfg["seed"])
         ret, cost, length = trainer.evaluate(args.eval_episodes,
-                                             target_ret * cfg["reward_scale"],
+                                             np.array(target_ret) * cfg["reward_scale"],
                                              target_cost * cfg["cost_scale"])
         normalized_ret, normalized_cost = env.get_normalized_score(ret, cost)
         print(
