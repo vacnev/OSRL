@@ -530,34 +530,45 @@ class PDTTrainer:
             costs_ = costs.clone()
             costs_[batch_idxs, last_idxs] = 0.
 
-            mask_ = mask.sum(dim=1).detach().cpu() # [batch_size]
-            discount = [torch.arange(i) for i in mask_]
-            discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
-            discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
-            rewards = rewards * discount  # [batch_size, seq_len]
-            costs_ = costs_ * discount  # [batch_size, seq_len]
-            n_rews = torch.cumsum(rewards.flip(dims=[1]), dim=1).flip(dims=[1])  # [batch_size, seq_len]
-            n_costs = torch.cumsum(costs_.flip(dims=[1]), dim=1).flip(dims=[1])  # [batch_size, seq_len]
+            # mask_ = mask.sum(dim=1).detach().cpu() # [batch_size]
+            # discount = [torch.arange(i) for i in mask_]
+            # discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
+            # discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
+            
+            # vectorized discounting
+            valid_len = mask.sum(dim=1, keepdim=True)  # [batch_size, 1]
+            arange = torch.arange(seq_len, device=self.device)  # [seq_len]
+            exp_mat = arange * mask  # [batch_size, seq_len]
+            discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
 
+            # rewards = rewards * discount  # [batch_size, seq_len]
+            # costs_ = costs_ * discount  # [batch_size, seq_len]
+            n_rews = torch.cumsum((rewards * discount).flip(dims=[1]), dim=1).flip(dims=[1]) / discount # [batch_size, seq_len]
+            n_costs = torch.cumsum((costs_ * discount).flip(dims=[1]), dim=1).flip(dims=[1]) / discount  # [batch_size, seq_len]
+            
             # reweight for correct discounting
-            n_rews = n_rews / discount
-            n_costs = n_costs / discount
+            # n_rews = n_rews / discount
+            # n_costs = n_costs / discount
+            
+            # discount = [i - 1 - torch.arange(i) for i in mask_]
+            # discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
+            # discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
 
             # add target Q for bootstrap
-            discount = [i - 1 - torch.arange(i) for i in mask_]
-            discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
-            discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
+            exp_mat = torch.maximum(valid_len - 1 - arange, torch.zeros(1, device=self.device))  # [batch_size, seq_len]
+            discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
+
             target_qr = (n_rews + target_qr.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
             target_qc = (n_costs + target_qc.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
         else:
             target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
             target_qr = rewards[:, :-1] + self.model.gamma * target_qr[:, 1:]  # [batch_size, seq_len - 1]
             target_qc = rewards[:, :-1] + self.model.gamma * target_qc[:, 1:]  # [batch_size, seq_len - 1]
-            target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1)
-            target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1)
+            target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
+            target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
 
-        target_qr = target_qr.unsqueeze(0).expand_as(current_qrs).detach()  # [num_qr, batch_size, seq_len]
-        target_qc = target_qc.unsqueeze(0).expand_as(current_qcs).detach()  # [num_qc, batch_size, seq_len]
+        target_qr = target_qr.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
+        target_qc = target_qc.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
 
         # mask out last valid index in each sequence
         mask_ = mask.clone()
