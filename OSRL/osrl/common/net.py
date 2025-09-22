@@ -267,7 +267,7 @@ class EnsembleQCritic(nn.Module):
 
     def predict(self, obs, act):
         q_list = self.forward(obs, act)
-        qs = torch.vstack(q_list)  # [num_q, batch_size]
+        qs = torch.stack(q_list, dim=0)  # [num_q, batch_size]
         return torch.min(qs, dim=0).values, q_list
         # return torch.mean(qs, dim=0), q_list
 

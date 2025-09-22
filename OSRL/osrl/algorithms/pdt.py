@@ -202,6 +202,30 @@ class PDT(nn.Module):
         self.ema_update(self.critic_target, self.critic)
         self.ema_update(self.cost_critic_target, self.cost_critic)
 
+    @torch.no_grad()
+    def pred_targets(self, sc, actions):
+        target_qr, _ = self.critic_target.predict(sc, actions)
+        target_qc, _ = self.cost_critic_target.predict(sc, actions)
+        return target_qr, target_qc
+    
+    def pred_critics(self, sc, actions):
+        # turn off grad for efficiency in predictions
+        for p in self.critic.parameters():
+            p.requires_grad = False
+        for p in self.cost_critic.parameters():
+            p.requires_grad = False
+
+        qr_preds, _ = self.critic.predict(sc, actions)
+        qc_preds, _ = self.cost_critic.predict(sc, actions)
+
+        for p in self.critic.parameters():
+            p.requires_grad = True
+        for p in self.cost_critic.parameters():
+            p.requires_grad = True
+
+        return qr_preds, qc_preds
+
+
     def actor_forward(
             self,
             states: torch.Tensor,  # [batch_size, seq_len, state_dim]
@@ -479,6 +503,7 @@ class PDTTrainer:
         batch_size = states.shape[0]
         # find last valid index for each sequence
         last_idxs = mask.sum(dim=1) - 1  # [batch_size]
+        last_idxs = last_idxs.long()
         batch_idxs = torch.arange(len(last_idxs), device=self.device)
 
         if self.stochastic:
@@ -499,8 +524,7 @@ class PDTTrainer:
         if self.n_step:
             last_sc = sc[batch_idxs, last_idxs]  # [batch_size, state_dim + 1]
             last_action = action_preds_mean[batch_idxs, last_idxs]  # [batch_size, action_dim]
-            target_qr, _ = self.model.critic_target.predict(last_sc, last_action) # [batch_size]
-            target_qc, _ = self.model.cost_critic_target.predict(last_sc, last_action) # [batch_size]
+            target_qr, target_qc = self.model.pred_targets(last_sc, last_action)  # [batch_size]
 
             # zero the last cost for n-step as it is already included in the target Q
             costs_ = costs.clone()
@@ -523,11 +547,10 @@ class PDTTrainer:
             discount = [i - 1 - torch.arange(i) for i in mask_]
             discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
             discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
-            target_qr = (n_rews + target_qr * discount).detach()  # [batch_size, seq_len]
-            target_qc = (n_costs + target_qc * discount).detach()  # [batch_size, seq_len]
+            target_qr = (n_rews + target_qr.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
+            target_qc = (n_costs + target_qc.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
         else:
-            target_qr, _ = self.model.critic_target.predict(sc, action_preds_mean) # [batch_size, seq_len]
-            target_qc, _ = self.model.cost_critic_target.predict(sc, action_preds_mean) # [batch_size, seq_len]
+            target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
             target_qr = rewards[:, :-1] + self.model.gamma * target_qr[:, 1:]  # [batch_size, seq_len - 1]
             target_qc = rewards[:, :-1] + self.model.gamma * target_qc[:, 1:]  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1)
@@ -599,14 +622,14 @@ class PDTTrainer:
 
         loss = act_loss + self.cost_weight * cost_loss + self.state_weight * state_loss
 
+        qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
+
         # PF improvement
-        qr_preds, _ = self.model.critic.predict(sc, action_preds_mean) # [batch_size, seq_len]
         qr_preds = qr_preds[mask > 0]
         qr_loss = -qr_preds.mean() / qr_preds.abs().mean().detach()
         loss += self.qr_weight * qr_loss
 
         # verification
-        qc_preds, _ = self.model.cost_critic.predict(sc, action_preds_mean) # [batch_size, seq_len]
         qc_preds = qc_preds[mask > 0]
         qc_loss = qc_preds.mean() / qc_preds.abs().mean().detach()
 
@@ -641,8 +664,8 @@ class PDTTrainer:
             cost_critic_lr=self.cost_critic_scheduler.get_last_lr()[0],
             critic_loss=critic_loss.item(),
             cost_critic_loss=cost_critic_loss.item(),
-            qr_loss=qr_loss.item(),
-            qc_loss=qc_loss.item(),
+            qr_loss=qr_preds.mean().item(),
+            qc_loss=qc_preds.mean().item(),
         )
 
     def evaluate(self, num_rollouts, target_returns, target_cost):

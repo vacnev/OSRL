@@ -7,18 +7,18 @@ if __name__ == "__main__":
 
     task = [
         # bullet safety gym envs
-        "OfflineBallRun-v0",
+        # "OfflineBallRun-v0",
         # "OfflineCarRun-v0",
         # "OfflineDroneRun-v0",
         # "OfflineAntRun-v0",
-        # "OfflineAntCircle-v0",
+        "OfflineAntCircle-v0",
         # "OfflineBallCircle-v0",
         # "OfflineCarCircle-v0",
         # "OfflineDroneCircle-v0",
     ]
 
     # policy = ["train_bc", "train_bcql", "train_bearl", "train_coptidice", "train_cpq", "train_ccac"]
-    policy = ["train_cdt"]
+    policy = ["train_pdt"]
     cost_limit = [10]
     seed = [0]
     project = ["OSRL"]
