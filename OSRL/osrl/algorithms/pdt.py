@@ -226,7 +226,7 @@ class PDT(nn.Module):
         return qr_preds, qc_preds
 
 
-    def actor_forward(
+    def forward(
             self,
             states: torch.Tensor,  # [batch_size, seq_len, state_dim]
             actions: torch.Tensor,  # [batch_size, seq_len, action_dim]
@@ -346,7 +346,7 @@ class PDT(nn.Module):
         last_rew = returns_to_go[0, -2] - returns_to_go[0, -1]
         returns_to_go[-1, -1], _ = (self.critic.predict(sc, actions[-1:, -2])[0] - last_rew) / self.gamma
 
-        action_preds, _, _ = self.actor_forward(states, actions, returns_to_go, costs_to_go, time_steps, padding_mask)
+        action_preds, _, _ = self.forward(states, actions, returns_to_go, costs_to_go, time_steps, padding_mask)
 
         if self.stochastic:
             action_preds = action_preds.mean
@@ -491,7 +491,7 @@ class PDTTrainer:
                        costs):
         # True value indicates that the corresponding key value will be ignored
         padding_mask = ~mask.to(torch.bool)
-        action_preds, cost_preds, state_preds = self.model.actor_forward(
+        action_preds, cost_preds, state_preds = self.model(
             states=states,
             actions=actions,
             returns_to_go=returns,
@@ -540,6 +540,7 @@ class PDTTrainer:
             arange = torch.arange(seq_len, device=self.device)  # [seq_len]
             exp_mat = arange * mask  # [batch_size, seq_len]
             discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
+            discount = discount.float()
 
             # rewards = rewards * discount  # [batch_size, seq_len]
             # costs_ = costs_ * discount  # [batch_size, seq_len]
@@ -557,6 +558,7 @@ class PDTTrainer:
             # add target Q for bootstrap
             exp_mat = torch.maximum(valid_len - 1 - arange, torch.zeros(1, device=self.device))  # [batch_size, seq_len]
             discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
+            discount = discount.float()
 
             target_qr = (n_rews + target_qr.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
             target_qc = (n_costs + target_qc.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
@@ -746,7 +748,7 @@ class PDTTrainer:
             c = costs[:, :step + 1][:, -model.seq_len:]  # noqa
             t = time_steps[:, :step + 1][:, -model.seq_len:]  # noqa
 
-            acts, _, _ = model.get_action(s, a, r, c, t, None, self.logger)
+            acts, _, _ = model.act(s, a, r, c, t, None, self.logger)
             if self.stochastic:
                 acts = acts.mean
             acts = acts.clamp(-self.max_action, self.max_action)

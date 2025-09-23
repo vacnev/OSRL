@@ -117,6 +117,8 @@ def train(args: PDTTrainConfig):
     ).to(args.device)
     print(f"Total parameters: {sum(p.numel() for p in model.parameters())}")
 
+    # model.compile()
+
     def checkpoint_fn():
         return {"model_state": model.state_dict()}
 
@@ -194,8 +196,13 @@ def train(args: PDTTrainConfig):
         states, actions, returns, costs_return, time_steps, mask, episode_cost, costs = [
             b.to(args.device) for b in batch
         ]
-        trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
+        with torch.autograd.profiler.profile(use_cuda=True) as prof:
+            for _ in range(5):
+                trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
                                costs)
+        print(prof.key_averages().table(sort_by="cuda_time_total"))
+        prof.export_chrome_trace("trace.json")
+        break
 
         # evaluation
         if (step + 1) % args.eval_every == 0 or step == args.update_steps - 1:

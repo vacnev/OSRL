@@ -13,5 +13,6 @@ matplotlib
 pandas
 scikit-learn
 seaborn
+torch==2.8.0
 
 
