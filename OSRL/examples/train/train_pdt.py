@@ -196,13 +196,22 @@ def train(args: PDTTrainConfig):
         states, actions, returns, costs_return, time_steps, mask, episode_cost, costs = [
             b.to(args.device) for b in batch
         ]
-        with torch.autograd.profiler.profile(use_cuda=True) as prof:
-            for _ in range(5):
-                trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
+        
+        # with torch.cuda.amp.autocast():
+        trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
                                costs)
-        print(prof.key_averages().table(sort_by="cuda_time_total"))
-        prof.export_chrome_trace("trace.json")
-        break
+        
+        # with torch.profiler.profile(
+        #     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
+        #     on_trace_ready=torch.profiler.tensorboard_trace_handler('./log_profiler/pdt'),
+        #     record_shapes=True,
+        #     profile_memory=True,
+        #     with_stack=True
+        # ) as prof:
+        #     for _ in range(5):
+        #         prof.step()
+        #         trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
+        #                                costs)
 
         # evaluation
         if (step + 1) % args.eval_every == 0 or step == args.update_steps - 1:

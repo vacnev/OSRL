@@ -164,6 +164,7 @@ class PDT(nn.Module):
                                       hidden_sizes=c_hidden_sizes,
                                       cost_conditioned=True,
                                       num_q=num_qr,
+                                      activation=nn.Mish,
                                       )
         
         self.cost_critic = EnsembleQCritic(self.state_dim,
@@ -171,6 +172,7 @@ class PDT(nn.Module):
                                            hidden_sizes=c_hidden_sizes,
                                            cost_conditioned=True,
                                            num_q=num_qc,
+                                           activation=nn.Mish,
                                            )
         
         self.critic_target = deepcopy(self.critic)
@@ -489,6 +491,8 @@ class PDTTrainer:
 
     def train_one_step(self, states, actions, returns, costs_return, time_steps, mask,
                        costs):
+        mask = mask.float()
+
         # True value indicates that the corresponding key value will be ignored
         padding_mask = ~mask.to(torch.bool)
         action_preds, cost_preds, state_preds = self.model(
@@ -540,7 +544,6 @@ class PDTTrainer:
             arange = torch.arange(seq_len, device=self.device)  # [seq_len]
             exp_mat = arange * mask  # [batch_size, seq_len]
             discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
-            discount = discount.float()
 
             # rewards = rewards * discount  # [batch_size, seq_len]
             # costs_ = costs_ * discount  # [batch_size, seq_len]
@@ -558,7 +561,6 @@ class PDTTrainer:
             # add target Q for bootstrap
             exp_mat = torch.maximum(valid_len - 1 - arange, torch.zeros(1, device=self.device))  # [batch_size, seq_len]
             discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
-            discount = discount.float()
 
             target_qr = (n_rews + target_qr.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
             target_qc = (n_costs + target_qc.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
