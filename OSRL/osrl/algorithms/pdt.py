@@ -175,6 +175,7 @@ class PDT(nn.Module):
                                            activation=nn.Mish,
                                            )
         
+        
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
         self.cost_critic_target = deepcopy(self.cost_critic)
@@ -342,11 +343,11 @@ class PDT(nn.Module):
             returns_to_go[i * batch_repeats + 1:(i + 1) * batch_repeats, -1] = torch.rand((batch_repeats - 1), device=returns_to_go.device) * (high - low) + low
 
         # Add Q RTG action
-
         # predict from second to last, last one is dummy, check that we are not on the first step
-        sc = torch.cat([states[-1:, -2], costs_to_go[-1:, -2].unsqueeze(-1)], dim=-1)
-        last_rew = returns_to_go[0, -2] - returns_to_go[0, -1]
-        returns_to_go[-1, -1], _ = (self.critic.predict(sc, actions[-1:, -2])[0] - last_rew) / self.gamma
+        if actions.shape[1] > 1:
+            sc = torch.cat([states[-1:, -2], costs_to_go[-1:, -2].unsqueeze(-1)], dim=-1)
+            last_rew = returns_to_go[0, -2] - returns_to_go[0, -1]
+            returns_to_go[-1, -1], _ = (self.critic.predict(sc, actions[-1:, -2])[0] - last_rew) / self.gamma
 
         action_preds, _, _ = self.forward(states, actions, returns_to_go, costs_to_go, time_steps, padding_mask)
 
