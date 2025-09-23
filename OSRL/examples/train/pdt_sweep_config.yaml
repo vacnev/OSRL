@@ -1,0 +1,42 @@
+program: python3
+command:
+  - -m
+  - examples.train.train_pdt
+  - --task
+  - OfflineAntCircle-v0
+  - --project
+  - OSRL
+  - --gamma
+  - ${gamma}
+  - --qr_weight
+  - ${qr_weight}
+  - --qc_weight
+  - ${qc_weight}
+  - --use_verification
+  - ${use_verification}
+  - --infer_q
+  - ${infer_q}
+  - --seed
+  - ${seed}
+  - --critic_lr
+  - ${critic_lr}
+method: grid
+name: pdt_sweep_AntCircle
+project: OSRL
+parameters:
+  gamma:
+    values: [0.99, 0.999]
+  qr_weight:
+    values: [0.1, 1.0, 3.0, 5.0]
+  qc_weight:
+    values: [0.01, 0.1, 1.0, 5.0]
+  use_verification:
+    values: [true, false]
+  infer_q:
+    values: [true, false]
+  seed:
+    values: [0]
+  critic_lr:
+    values: [1e-4, 3e-4, 1e-3]
+  
+  # clip grad
