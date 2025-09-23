@@ -312,6 +312,7 @@ class PDT(nn.Module):
 
         return action_preds, cost_preds, state_preds
     
+    @torch.no_grad()
     def act(
             self,
             states: torch.Tensor,  # [batch_size, seq_len, state_dim]
@@ -347,7 +348,7 @@ class PDT(nn.Module):
         if actions.shape[1] > 1:
             sc = torch.cat([states[-1:, -2], costs_to_go[-1:, -2].unsqueeze(-1)], dim=-1)
             last_rew = returns_to_go[0, -2] - returns_to_go[0, -1]
-            returns_to_go[-1, -1], _ = (self.critic.predict(sc, actions[-1:, -2])[0] - last_rew) / self.gamma
+            returns_to_go[-1, -1] = (self.critic.predict(sc, actions[-1:, -2])[0] - last_rew) / self.gamma
 
         action_preds, _, _ = self.forward(states, actions, returns_to_go, costs_to_go, time_steps, padding_mask)
 
@@ -355,29 +356,20 @@ class PDT(nn.Module):
             action_preds = action_preds.mean
 
         states_rpt = states[:, -1, :]
+        costs_to_go_rpt = costs_to_go[:, -1]
+        sc_rpt = torch.cat([states_rpt, costs_to_go_rpt.unsqueeze(-1)], dim=-1)
         action_preds = action_preds[:, -1, :]
 
-        q_vals = self.critic.predict(states_rpt, action_preds)[0].flatten()
-        qc_vals = self.cost_critic.predict(states_rpt, action_preds)[0].flatten()
+        qr_preds, qc_preds = self.pred_critics(sc_rpt, action_preds)
 
         # Verification filtering to filter out unsafe actions
         if self.use_verification:
-            safe_mask = (qc_vals <= costs_to_go[0, -1])
+            safe_mask = (qc_preds <= costs_to_go[0, -1])
             if safe_mask.sum() > 0:
-                q_vals = q_vals[safe_mask]
+                qr_preds = qr_preds[safe_mask]
                 action_preds = action_preds[safe_mask]
-            logger.store(
-                tab="eval",
-                safe_actions_count=safe_mask.sum().item(),
-                total_actions=len(safe_mask),
-            )
 
-        idx = torch.multinomial(F.softmax(q_vals, dim=-1), 1)
-
-        logger.store(
-            tab="eval",
-            q_infer_diff=(q_vals[idx] - q_vals[0]).item(),
-        )
+        idx = torch.multinomial(F.softmax(qr_preds, dim=-1), 1)
 
         if self.infer_q:
             return action_preds[idx]
@@ -492,8 +484,6 @@ class PDTTrainer:
 
     def train_one_step(self, states, actions, returns, costs_return, time_steps, mask,
                        costs):
-        mask = mask.float()
-
         # True value indicates that the corresponding key value will be ignored
         padding_mask = ~mask.to(torch.bool)
         action_preds, cost_preds, state_preds = self.model(
@@ -535,31 +525,16 @@ class PDTTrainer:
             costs_ = costs.clone()
             costs_[batch_idxs, last_idxs] = 0.
 
-            # mask_ = mask.sum(dim=1).detach().cpu() # [batch_size]
-            # discount = [torch.arange(i) for i in mask_]
-            # discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
-            # discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
-            
             # vectorized discounting
-            valid_len = mask.sum(dim=1, keepdim=True)  # [batch_size, 1]
             arange = torch.arange(seq_len, device=self.device)  # [seq_len]
             exp_mat = arange * mask  # [batch_size, seq_len]
-            discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
+            discount = self.model.gamma ** exp_mat.float()  # [batch_size, seq_len]
 
-            # rewards = rewards * discount  # [batch_size, seq_len]
-            # costs_ = costs_ * discount  # [batch_size, seq_len]
             n_rews = torch.cumsum((rewards * discount).flip(dims=[1]), dim=1).flip(dims=[1]) / discount # [batch_size, seq_len]
             n_costs = torch.cumsum((costs_ * discount).flip(dims=[1]), dim=1).flip(dims=[1]) / discount  # [batch_size, seq_len]
             
-            # reweight for correct discounting
-            # n_rews = n_rews / discount
-            # n_costs = n_costs / discount
-            
-            # discount = [i - 1 - torch.arange(i) for i in mask_]
-            # discount = torch.stack([F.pad(d, (0, seq_len - len(d)), value=0) for d in discount], dim=0).to(self.device)  # [batch_size, seq_len]
-            # discount = (self.model.gamma ** discount).to(self.device)  # [batch_size, seq_len]
-
             # add target Q for bootstrap
+            valid_len = mask.sum(dim=1, keepdim=True).float()  # [batch_size, 1]
             exp_mat = torch.maximum(valid_len - 1 - arange, torch.zeros(1, device=self.device))  # [batch_size, seq_len]
             discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
 
@@ -646,6 +621,7 @@ class PDTTrainer:
         loss += self.qr_weight * qr_loss
 
         # verification
+        qc_preds = (qc_preds - costs_return).relu() # only penalize unsafe actions
         qc_preds = qc_preds[mask > 0]
         qc_loss = qc_preds.mean() / qc_preds.abs().mean().detach()
 
@@ -751,20 +727,17 @@ class PDTTrainer:
             c = costs[:, :step + 1][:, -model.seq_len:]  # noqa
             t = time_steps[:, :step + 1][:, -model.seq_len:]  # noqa
 
-            acts, _, _ = model.act(s, a, r, c, t, None, self.logger)
-            if self.stochastic:
-                acts = acts.mean
-            acts = acts.clamp(-self.max_action, self.max_action)
-            act = acts[0, -1].cpu().numpy()
+            act = model.act(s, a, r, c, t, None, self.logger)
+            act = act.clamp(-self.max_action, self.max_action)
             # act = self.get_ensemble_action(1, model, s, a, r, c, t)
 
-            obs_next, reward, terminated, truncated, info = env.step(act)
+            obs_next, reward, terminated, truncated, info = env.step(act.cpu().numpy())
             if self.cost_reverse:
                 cost = (1.0 - info["cost"]) * self.cost_scale
             else:
                 cost = info["cost"] * self.cost_scale
             # at step t, we predict a_t, get s_{t + 1}, r_{t + 1}
-            actions[:, step] = torch.as_tensor(act)
+            actions[:, step] = act
             states[:, step + 1] = torch.as_tensor(obs_next)
             returns[:, step + 1] = torch.as_tensor(returns[:, step] - reward)
             costs[:, step + 1] = torch.as_tensor(costs[:, step] - cost)
