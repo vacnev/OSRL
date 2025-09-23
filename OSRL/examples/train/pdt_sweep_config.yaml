@@ -12,10 +12,6 @@ command:
   - ${qr_weight}
   - --qc_weight
   - ${qc_weight}
-  - --use_verification
-  - ${use_verification}
-  - --infer_q
-  - ${infer_q}
   - --seed
   - ${seed}
   - --critic_lr
@@ -27,13 +23,9 @@ parameters:
   gamma:
     values: [0.99, 0.999]
   qr_weight:
-    values: [0.1, 1.0, 3.0, 5.0]
+    values: [1.0, 5.0]
   qc_weight:
-    values: [0.01, 0.1, 1.0, 5.0]
-  use_verification:
-    values: [true, false]
-  infer_q:
-    values: [true, false]
+    values: [0., 0.1, 1.0]
   seed:
     values: [0]
   critic_lr:

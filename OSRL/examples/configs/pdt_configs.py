@@ -42,6 +42,7 @@ class PDTTrainConfig:
     betas: Tuple[float, float] = (0.9, 0.999)
     weight_decay: float = 1e-4
     clip_grad: Optional[float] = 0.25
+    clip_grad_critic: Optional[float] = 1.0
     batch_size: int = 2048
     update_steps: int = 200_000
     lr_warmup_steps: int = 500

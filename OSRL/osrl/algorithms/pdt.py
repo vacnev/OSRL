@@ -391,6 +391,7 @@ class PDTTrainer:
         weight_decay (float): The weight decay for the optimizer.
         betas (Tuple[float, ...]): The betas for the optimizer.
         clip_grad (float): The clip gradient value.
+        clip_grad_critic (float): The clip gradient value for the critic.
         lr_warmup_steps (int): The number of warmup steps for the learning rate scheduler.
         reward_scale (float): The scaling factor for the reward signal.
         cost_scale (float): The scaling factor for the constraint cost.
@@ -417,6 +418,7 @@ class PDTTrainer:
             weight_decay: float = 1e-4,
             betas: Tuple[float, ...] = (0.9, 0.999),
             clip_grad: float = 0.25,
+            clip_grad_critic: float = 2.0,
             lr_warmup_steps: int = 10000,
             reward_scale: float = 1.0,
             cost_scale: float = 1.0,
@@ -432,6 +434,7 @@ class PDTTrainer:
         self.logger = logger
         self.env = env
         self.clip_grad = clip_grad
+        self.clip_grad_critic = clip_grad_critic
         self.reward_scale = reward_scale
         self.cost_scale = cost_scale
         self.device = device
@@ -561,12 +564,12 @@ class PDTTrainer:
         self.critic_optim.zero_grad()
         critic_loss.backward()
         if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad)
+            torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
         self.critic_optim.step()
         self.cost_critic_optim.zero_grad()
         cost_critic_loss.backward()
         if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad)
+            torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
         self.cost_critic_optim.step()
 
         self.model.sync_target_networks()
@@ -617,13 +620,13 @@ class PDTTrainer:
 
         # PF improvement
         qr_preds = qr_preds[mask > 0]
-        qr_loss = -qr_preds.mean() / qr_preds.abs().mean().detach()
+        qr_loss = -qr_preds.mean() / (qr_preds.abs().mean().detach() + 1e-8)
         loss += self.qr_weight * qr_loss
 
         # verification
         qc_preds = (qc_preds - costs_return).relu() # only penalize unsafe actions
         qc_preds = qc_preds[mask > 0]
-        qc_loss = qc_preds.mean() / qc_preds.abs().mean().detach()
+        qc_loss = qc_preds.mean() / (qc_preds.abs().mean().detach() + 1e-8)
 
         if self.model.use_verification:
             loss += self.qc_weight * qc_loss
