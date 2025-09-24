@@ -28,5 +28,7 @@ parameters:
     values: [0]
   critic_lr:
     values: [1e-4, 3e-4, 1e-3]
+  update_steps:
+    values: [100_000]
   
   # clip grad

@@ -190,6 +190,7 @@ def train(args: PDTTrainConfig):
     # for saving the best
     best_reward = -np.inf
     best_cost = np.inf
+    best_safe = False
     best_idx = 0
 
     for step in trange(args.update_steps, desc="Training"):
@@ -248,10 +249,11 @@ def train(args: PDTTrainConfig):
             # save the best weight
             mean_ret = np.mean(average_reward)
             mean_cost = np.mean(average_cost)
-            if (not safe and mean_cost < best_cost) or ((safe or mean_cost == best_cost)
-                                         and mean_ret > best_reward):
+            if (not safe and (mean_cost < best_cost or (mean_cost == best_cost and mean_ret > best_reward))) \
+                or (safe and (mean_ret > best_reward or not best_safe)):
                 best_cost = mean_cost
                 best_reward = mean_ret
+                best_safe = safe
                 best_idx = step
                 logger.save_checkpoint(suffix="best")
 
@@ -264,3 +266,5 @@ def train(args: PDTTrainConfig):
 
 if __name__ == "__main__":
     train()
+    import wandb
+    wandb.finish()
