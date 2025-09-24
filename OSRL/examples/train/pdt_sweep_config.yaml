@@ -1,21 +1,16 @@
-program: python3
+program: examples.train.train_pdt
 command:
+  - python3
   - -m
-  - examples.train.train_pdt
-  - --task
-  - OfflineAntCircle-v0
+  - ${program}
   - --project
   - OSRL
-  - --gamma
-  - ${gamma}
-  - --qr_weight
-  - ${qr_weight}
-  - --qc_weight
-  - ${qc_weight}
-  - --seed
-  - ${seed}
-  - --critic_lr
-  - ${critic_lr}
+  - --task
+  - OfflineAntCircle-v0
+  - --device
+  - cuda
+  - ${config}
+  - ${args}
 method: grid
 name: pdt_sweep_AntCircle
 project: OSRL

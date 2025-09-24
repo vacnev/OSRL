@@ -20,6 +20,7 @@ from osrl.algorithms import PDT, PDTTrainer
 from osrl.common import SequenceDataset
 from osrl.common.exp_util import auto_name, seed_all
 
+# torch.autograd.set_detect_anomaly(True)
 
 @pyrallis.wrap()
 def train(args: PDTTrainConfig):
@@ -217,6 +218,7 @@ def train(args: PDTTrainConfig):
         if (step + 1) % args.eval_every == 0 or step == args.update_steps - 1:
             average_reward, average_cost = [], []
             log_cost, log_reward, log_len = {}, {}, {}
+            safe = True
             for target_return in args.target_returns:
                 reward_returns, cost_return = target_return
                 if args.cost_reverse:
@@ -230,6 +232,7 @@ def train(args: PDTTrainConfig):
                         cost_return * args.cost_scale)
                 average_cost.append(cost)
                 average_reward.append(ret)
+                safe &= (cost <= cost_return)
 
                 name = "c_" + str(int(cost_return)) + "_r_" + str(int(reward_returns[0]))
                 log_cost.update({name: cost})
@@ -245,7 +248,7 @@ def train(args: PDTTrainConfig):
             # save the best weight
             mean_ret = np.mean(average_reward)
             mean_cost = np.mean(average_cost)
-            if mean_cost < best_cost or (mean_cost == best_cost
+            if (not safe and mean_cost < best_cost) or ((safe or mean_cost == best_cost)
                                          and mean_ret > best_reward):
                 best_cost = mean_cost
                 best_reward = mean_ret
