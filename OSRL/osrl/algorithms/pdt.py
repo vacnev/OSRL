@@ -624,8 +624,8 @@ class PDTTrainer:
         loss += self.qr_weight * qr_loss
 
         # verification
-        qc_preds = qc_preds[mask > 0]
-        qc_loss = (qc_preds - costs_return).relu().pow(2).mean() # only penalize unsafe actions
+        qc_loss = (qc_preds - costs_return)[mask > 0] # only penalize unsafe actions
+        qc_loss = qc_loss.relu().pow(2).mean()
 
         if self.model.use_verification:
             loss += self.qc_weight * qc_loss
