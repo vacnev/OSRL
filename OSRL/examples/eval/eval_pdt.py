@@ -17,6 +17,8 @@ class EvalConfig:
     path: str = "log/.../checkpoint/model.pt"
     returns: List[float] = field(default=[300, 400, 500], is_mutable=True)
     costs: List[float] = field(default=[10, 10, 10], is_mutable=True)
+    use_verification: bool = True
+    infer_q: bool = True
     noise_scale: List[float] = None
     eval_episodes: int = 20
     best: bool = False
@@ -75,8 +77,8 @@ def eval(args: EvalConfig):
         c_hidden_sizes=cfg["c_hidden_sizes"],
         tau=cfg["tau"],
         gamma=cfg["gamma"],
-        use_verification=cfg["use_verification"],
-        infer_q=cfg["infer_q"],
+        use_verification=args.use_verification,
+        infer_q=args.infer_q,
     )
     PDT_model.load_state_dict(model["model_state"])
     PDT_model.to(args.device)
@@ -93,11 +95,13 @@ def eval(args: EvalConfig):
     assert len(rets) == len(
         costs
     ), f"The length of returns {len(rets)} should be equal to costs {len(costs)}!"
-    for target_ret, target_cost in zip(rets, costs):
+    # for target_ret, target_cost in zip(rets, costs):
+    for target_ret, target_cost in cfg["target_returns"]:
         seed_all(cfg["seed"])
         ret, cost, length = trainer.evaluate(args.eval_episodes,
                                              np.array(target_ret) * cfg["reward_scale"],
                                              target_cost * cfg["cost_scale"])
+        env.set_target_cost(target_cost)
         normalized_ret, normalized_cost = env.get_normalized_score(ret, cost)
         print(
             f"Target reward {target_ret}, real reward {ret}, normalized reward: {normalized_ret}; target cost {target_cost}, real cost {cost}, normalized cost: {normalized_cost}"
