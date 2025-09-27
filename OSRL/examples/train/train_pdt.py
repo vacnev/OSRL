@@ -219,6 +219,7 @@ def train(args: PDTTrainConfig):
         if (step + 1) % args.eval_every == 0 or step == args.update_steps - 1:
             average_reward, average_cost = [], []
             log_cost, log_reward, log_len = {}, {}, {}
+            log_safe_cost, log_safe_reward = {}, {}
             safe = True
             for target_return in args.target_returns:
                 reward_returns, cost_return = target_return
@@ -240,9 +241,15 @@ def train(args: PDTTrainConfig):
                 log_reward.update({name: ret})
                 log_len.update({name: length})
 
+                if cost <= cost_return:
+                    log_safe_cost.update({name: cost})
+                    log_safe_reward.update({name: ret})
+
             logger.store(tab="cost", **log_cost)
             logger.store(tab="ret", **log_reward)
             logger.store(tab="length", **log_len)
+            logger.store(tab="safe_cost", **log_safe_cost)
+            logger.store(tab="safe_ret", **log_safe_reward)
 
             # save the current weight
             logger.save_checkpoint()
