@@ -15,19 +15,17 @@ command:
   - ${config}
   - ${args}
 method: grid
-name: pdt_sweep_AntCircle
+name: pdt_sweep2_AntCircle
 project: OSRL
 parameters:
-  gamma:
-    values: [0.99, 0.999]
   qr_weight:
-    values: [1.0, 5.0]
+    values: [3.0, 5.0, 8.0, 10.0]
   qc_weight:
-    values: [0., 0.1, 1.0]
+    values: [0., 0.01, 0.1, 1.0]
   seed:
     values: [0]
-  critic_lr:
-    values: [1e-4, 3e-4, 1e-3]
+  # critic_lr:
+  #   values: [3e-4, 1e-3]
   update_steps:
     value: 100_000
   # clip grad 
