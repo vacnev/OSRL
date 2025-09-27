@@ -624,9 +624,8 @@ class PDTTrainer:
         loss += self.qr_weight * qr_loss
 
         # verification
-        qc_preds = (qc_preds - costs_return).relu() # only penalize unsafe actions
         qc_preds = qc_preds[mask > 0]
-        qc_loss = qc_preds.mean() / (qc_preds.abs().mean().detach() + 1e-8)
+        qc_loss = (qc_preds - costs_return).relu().pow(2).mean() # only penalize unsafe actions
 
         if self.model.use_verification:
             loss += self.qc_weight * qc_loss
@@ -660,7 +659,7 @@ class PDTTrainer:
             critic_loss=critic_loss.item(),
             cost_critic_loss=cost_critic_loss.item(),
             qr_loss=qr_preds.mean().item(),
-            qc_loss=qc_preds.mean().item(),
+            qc_loss=qc_loss.item(),
         )
 
     def evaluate(self, num_rollouts, target_returns, target_cost):
