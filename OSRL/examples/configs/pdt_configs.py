@@ -38,7 +38,7 @@ class PDTTrainConfig:
     task: str = "OfflineCarCircle-v0"
     dataset: str = None
     actor_lr: float = 1e-4
-    critic_lr: float = 1e-3
+    critic_lr: float = 3e-4
     betas: Tuple[float, float] = (0.9, 0.999)
     weight_decay: float = 1e-4
     clip_grad: Optional[float] = 0.25
@@ -50,7 +50,7 @@ class PDTTrainConfig:
     cost_scale: float = 1
     num_workers: int = 8
     tau: float = 0.005
-    gamma: float = 0.99
+    gamma: float = 0.999
     n_step: bool = True
     # evaluation params
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
@@ -191,7 +191,7 @@ class PDTAntCircleConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineAntCircle-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((300.0,), 10), ((350.0,), 20), ((400.0,), 40))
+                          ...] = (((400.0, 350.0, 300.0, 250.0, 200.0), 10), ((400.0, 350.0, 300.0, 250.0, 200.0), 20), ((400.0, 350.0, 300.0, 250.0, 200.0), 40))
     # augmentation param
     deg: int = 2
     max_reward: float = 500.0
