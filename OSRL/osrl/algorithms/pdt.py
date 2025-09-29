@@ -312,7 +312,6 @@ class PDT(nn.Module):
 
         return action_preds, cost_preds, state_preds
     
-    @torch.no_grad()
     def act(
             self,
             states: torch.Tensor,  # [batch_size, seq_len, state_dim]
@@ -361,6 +360,22 @@ class PDT(nn.Module):
         action_preds = action_preds[:, -1, :]
 
         qr_preds, qc_preds = self.pred_critics(sc_rpt, action_preds)
+
+        # print for the first 3 last qvals and corresponding ctg rtg
+        # print("QVALS: ", qr_preds[0])
+        # print("RTGS: ", returns_to_go[0, -1])
+        # print("QC VALS: ", qc_preds[0])
+        # print("CTGS: ", costs_to_go_rpt[0])
+
+        # # check monotonicity of Q values
+        # last_state = states_rpt[:1]
+        # last_action = action_preds[:1]
+        # for thd in range(1, 100):
+        #     sc = torch.cat([last_state, torch.tensor([[thd]], device=last_state.device)], dim=-1)
+        #     qr, qc = self.pred_critics(sc, last_action)
+        #     print(f"CTG: {thd}, QR: {qr[0].item()}, QC: {qc[0].item()}")
+            
+
 
         # Verification filtering to filter out unsafe actions
         if self.use_verification:
@@ -619,7 +634,9 @@ class PDTTrainer:
         qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
 
         # PF improvement
-        qr_preds = qr_preds[mask > 0]
+        # mask_out unsafe actions
+        safe_mask = (qc_preds <= costs_return).to(torch.double) # shielding
+        qr_preds = qr_preds[safe_mask * mask > 0]
         qr_loss = -qr_preds.mean() / (qr_preds.abs().mean().detach() + 1e-8)
         loss += self.qr_weight * qr_loss
 
