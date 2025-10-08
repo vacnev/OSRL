@@ -52,8 +52,11 @@ def eval_batch(args: EvalBatchConfig):
 
     # Extract env_name: from logs/OfflineAntCircle-v0/cost-5, env_name = OfflineAntCircle-v0
     env_name = os.path.basename(os.path.dirname(base_path))
+    exp_name = os.path.basename(base_path)
 
-    csv_filename = f'results_{env_name}.csv'
+    os.makedirs('results', exist_ok=True)
+
+    csv_filename = f'results/{env_name}_{exp_name}.csv'
     fieldnames = ['algo_name', 'target_reward', 'real_reward', 'normalized_reward', 'target_cost', 'real_cost', 'normalized_cost']
 
     with open(csv_filename, 'w', newline='') as csvfile:
@@ -75,7 +78,7 @@ def eval_batch(args: EvalBatchConfig):
             algo_name_lower = algo_name_raw.lower()
 
             eval_script = f'examples.eval.eval_{algo_name_lower}'
-            cmd = ['python3', '-m', eval_script, '--path', full_path, '--device', 'cuda', '--best', str(args.best).lower()]
+            cmd = ['python3', '-m', eval_script, '--path', full_path, '--device', 'cuda:1', '--best', str(args.best).lower()]
 
             # Add optional overrides
             if args.use_verification is not None:
@@ -90,10 +93,19 @@ def eval_batch(args: EvalBatchConfig):
                     continue
 
                 parsed_results = parse_eval_output(result.stdout)
+                norm_ret, norm_cost = 0, 0
                 for res in parsed_results:
                     row = {'algo_name': subdir, **res}
                     writer.writerow(row)
-                    csvfile.flush()
+                    norm_ret += res['normalized_reward']
+                    norm_cost += res['normalized_cost']
+
+                if parsed_results:
+                    avg_norm_ret = norm_ret / len(parsed_results)
+                    avg_norm_cost = norm_cost / len(parsed_results)
+                    print(f"Avg normalized reward for {subdir}: {avg_norm_ret}, Avg normalized cost: {avg_norm_cost}")
+
+                csvfile.flush()
 
             except Exception as e:
                 print(f"Exception running {cmd}: {e}")
