@@ -29,16 +29,16 @@ class PDTTrainConfig:
     residual_dropout: float = 0.1
     embedding_dropout: float = 0.1
     time_emb: bool = True
-    num_qr: int = 4
-    num_qc: int = 4
-    c_hidden_sizes: Tuple[int, ...] = (256, 256)
+    num_qr: int = 2
+    num_qc: int = 2
+    c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
     use_verification: bool = True
     infer_q: bool = True
     # training params
     task: str = "OfflineCarCircle-v0"
     dataset: str = None
     actor_lr: float = 1e-4
-    critic_lr: float = 3e-4
+    critic_lr: float = 1e-3
     betas: Tuple[float, float] = (0.9, 0.999)
     weight_decay: float = 1e-4
     clip_grad: Optional[float] = 0.25
@@ -51,10 +51,11 @@ class PDTTrainConfig:
     num_workers: int = 8
     tau: float = 0.005
     gamma: float = 0.999
-    n_step: bool = True
+    cost_gamma: float = 0.99999
+    n_step: bool = False
     # evaluation params
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((450.0,), 10), ((500.0,), 20), ((550.0,), 50))  # reward, cost
+                          ...] = (((450.0, 400.0, 350.0), 10), ((500.0, 450.0, 400.0), 20), ((550.0, 500.0, 450.0), 50))  # reward, cost
     cost_limit: int = 5
     eval_episodes: int = 10
     eval_every: int = 10_000
@@ -122,7 +123,7 @@ class PDTAntRunConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineAntRun-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((700.0,), 10), ((750.0,), 20), ((800.0,), 40))
+                          ...] = (((700.0, 650.0, 600.0), 10), ((750.0, 700.0, 650.0), 20), ((800.0, 750.0, 700.0), 40))
     # augmentation param
     deg: int = 3
     max_reward: float = 1000.0
@@ -138,7 +139,7 @@ class PDTDroneRunConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineDroneRun-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((400.0,), 10), ((500.0,), 20), ((600.0,), 40))
+                          ...] = (((400.0, 350.0, 300.0), 10), ((500.0, 450.0, 400.0), 20), ((600.0, 550.0, 500.0), 40))
     # augmentation param
     deg: int = 1
     max_reward: float = 700.0
@@ -155,7 +156,7 @@ class PDTDroneCircleConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineDroneCircle-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((700.0,), 10), ((750.0,), 20), ((800.0,), 40))
+                          ...] = (((700.0, 650.0, 600.0), 10), ((750.0, 700.0, 650.0), 20), ((800.0, 750.0, 700.0), 40))
     update_steps: int = 300_000
     # augmentation param
     deg: int = 1
@@ -191,7 +192,7 @@ class PDTAntCircleConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineAntCircle-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((400.0, 350.0, 300.0, 250.0, 200.0), 10), ((400.0, 350.0, 300.0, 250.0, 200.0), 20), ((400.0, 350.0, 300.0, 250.0, 200.0), 40))
+                          ...] = (((300.0, 250.0, 200.0), 10), ((350.0, 300.0, 250.0), 20), ((400.0, 350.0, 300.0), 40))
     # augmentation param
     deg: int = 2
     max_reward: float = 500.0
