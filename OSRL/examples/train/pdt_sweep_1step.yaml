@@ -14,19 +14,20 @@ command:
   - cuda
   - ${args}
 method: grid
-name: pdt_sweep_AntCircle
+name: pdt_sweep2_AntCircle_1step
 project: OSRL
 parameters:
-  gamma:
-    values: [0.99, 0.999]
   qr_weight:
-    values: [1.0, 5.0]
+    values: [1.0, 3.0, 5.0]
   qc_weight:
-    values: [0., 0.1, 1.0]
+    values: [0.01, 0.1, 1.0] # if in cost_gamma lower also fail we can just do 1.0
   seed:
     values: [0]
+  gamma:
+    values: [0.99, 0.999]
   critic_lr:
-    values: [1e-4, 3e-4, 1e-3]
+    values: [3e-4, 1e-3]
+  n_step:
+    value: False
   update_steps:
     value: 100_000
-  # clip grad 

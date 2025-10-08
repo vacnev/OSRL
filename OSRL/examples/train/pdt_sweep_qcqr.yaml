@@ -12,7 +12,6 @@ command:
   - OfflineAntCircle-v0
   - --device
   - cuda
-  - ${config}
   - ${args}
 method: grid
 name: pdt_sweep2_AntCircle_lr3e-4
