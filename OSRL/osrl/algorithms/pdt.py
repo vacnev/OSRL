@@ -78,6 +78,7 @@ class PDT(nn.Module):
         c_hidden_sizes: Tuple[int, ...] = (512, 512, 512),
         tau: float = 0.005,
         gamma: float = 0.99,
+        cost_gamma: float = 0.99,
         use_verification: bool = True,
         infer_q: bool = True,
     ):
@@ -98,6 +99,7 @@ class PDT(nn.Module):
         self.stochastic = stochastic
         self.tau = tau
         self.gamma = gamma
+        self.cost_gamma = cost_gamma # GAMMA FOR COST CRITIC, change back
         self.use_verification = use_verification
         self.infer_q = infer_q
 
@@ -362,10 +364,11 @@ class PDT(nn.Module):
         qr_preds, qc_preds = self.pred_critics(sc_rpt, action_preds)
 
         # print for the first 3 last qvals and corresponding ctg rtg
-        # print("QVALS: ", qr_preds[0])
-        # print("RTGS: ", returns_to_go[0, -1])
-        # print("QC VALS: ", qc_preds[0])
+        # print("QVALS: ", qr_preds)
+        # print("RTGS: ", returns_to_go[:, -1])
+        # print("QC VALS: ", qc_preds)
         # print("CTGS: ", costs_to_go_rpt[0])
+        # print("ACTIONS: ", action_preds)
 
         # # check monotonicity of Q values
         # last_state = states_rpt[:1]
@@ -387,7 +390,7 @@ class PDT(nn.Module):
         idx = torch.multinomial(F.softmax(qr_preds, dim=-1), 1)
 
         if self.infer_q:
-            return action_preds[idx]
+            return action_preds[idx.item()]
         else:
             return action_preds[0]
 
@@ -533,7 +536,7 @@ class PDTTrainer:
 
         # compute discounted n-step returns
         rewards = returns[:, :-1] - returns[:, 1:]  # r_t = R_t - R_{t+1}
-        rewards = torch.cat([rewards, torch.zeros(batch_size, 1, device=self.device)], dim=1)
+        rewards = torch.cat([rewards, torch.zeros(batch_size, 1, device=self.device)], dim=1) # [batch_size, seq_len]
         if self.n_step:
             last_sc = sc[batch_idxs, last_idxs]  # [batch_size, state_dim + 1]
             last_action = action_preds_mean[batch_idxs, last_idxs]  # [batch_size, action_dim]
@@ -546,22 +549,25 @@ class PDTTrainer:
             # vectorized discounting
             arange = torch.arange(seq_len, device=self.device)  # [seq_len]
             exp_mat = arange * mask  # [batch_size, seq_len]
+
             discount = self.model.gamma ** exp_mat.float()  # [batch_size, seq_len]
+            discount_cost = self.model.cost_gamma ** exp_mat.float()  # [batch_size, seq_len]
 
             n_rews = torch.cumsum((rewards * discount).flip(dims=[1]), dim=1).flip(dims=[1]) / discount # [batch_size, seq_len]
-            n_costs = torch.cumsum((costs_ * discount).flip(dims=[1]), dim=1).flip(dims=[1]) / discount  # [batch_size, seq_len]
-            
+            n_costs = torch.cumsum((costs_ * discount_cost).flip(dims=[1]), dim=1).flip(dims=[1]) / discount_cost  # [batch_size, seq_len]
+
             # add target Q for bootstrap
             valid_len = mask.sum(dim=1, keepdim=True).float()  # [batch_size, 1]
             exp_mat = torch.maximum(valid_len - 1 - arange, torch.zeros(1, device=self.device))  # [batch_size, seq_len]
             discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
+            discount_cost = self.model.cost_gamma ** exp_mat  # [batch_size, seq_len]
 
             target_qr = (n_rews + target_qr.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
-            target_qc = (n_costs + target_qc.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
+            target_qc = (n_costs + target_qc.unsqueeze(-1) * discount_cost).detach()  # [batch_size, seq_len]
         else:
             target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
             target_qr = rewards[:, :-1] + self.model.gamma * target_qr[:, 1:]  # [batch_size, seq_len - 1]
-            target_qc = rewards[:, :-1] + self.model.gamma * target_qc[:, 1:]  # [batch_size, seq_len - 1]
+            target_qc = rewards[:, :-1] + self.model.cost_gamma * target_qc[:, 1:]  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
             target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
 
