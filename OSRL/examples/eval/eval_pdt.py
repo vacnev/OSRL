@@ -22,7 +22,7 @@ class EvalConfig:
     noise_scale: List[float] = None
     eval_episodes: int = 20
     best: bool = False
-    device: str = "cpu"
+    device: str = "cuda"
     threads: int = 4
 
 
@@ -95,18 +95,22 @@ def eval(args: EvalConfig):
     assert len(rets) == len(
         costs
     ), f"The length of returns {len(rets)} should be equal to costs {len(costs)}!"
+    norm_ret, norm_cost = 0, 0
     # for target_ret, target_cost in zip(rets, costs):
     for target_ret, target_cost in cfg["target_returns"]:
         seed_all(cfg["seed"])
+        env.set_target_cost(target_cost)
         ret, cost, length = trainer.evaluate(args.eval_episodes,
                                              np.array(target_ret) * cfg["reward_scale"],
                                              target_cost * cfg["cost_scale"])
-        env.set_target_cost(target_cost)
         normalized_ret, normalized_cost = env.get_normalized_score(ret, cost)
         print(
             f"Target reward {target_ret}, real reward {ret}, normalized reward: {normalized_ret}; target cost {target_cost}, real cost {cost}, normalized cost: {normalized_cost}"
         )
+        norm_ret += normalized_ret
+        norm_cost += normalized_cost
 
+    print(f"Average normalized reward: {norm_ret / len(cfg['target_returns'])}, average normalized cost: {norm_cost / len(cfg['target_returns'])}")
 
 if __name__ == "__main__":
     eval()
