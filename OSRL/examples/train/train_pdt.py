@@ -256,7 +256,7 @@ def train(args: PDTTrainConfig):
             # save the best weight
             mean_ret = np.mean(average_reward)
             mean_cost = np.mean(average_cost)
-            if (not safe and (mean_cost < best_cost or (mean_cost == best_cost and mean_ret > best_reward))) \
+            if (not safe and not best_safe and (mean_cost < best_cost or (mean_cost == best_cost and mean_ret > best_reward))) \
                 or (safe and (mean_ret > best_reward or not best_safe)):
                 best_cost = mean_cost
                 best_reward = mean_ret
