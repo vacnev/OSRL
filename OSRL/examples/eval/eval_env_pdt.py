@@ -16,6 +16,7 @@ class EvalBatchConfig:
     use_verification: Optional[bool] = None
     infer_q: Optional[bool] = None
     best: bool = True
+    device: str = field(default="cuda")
 
 def parse_eval_output(output):
     results = []
@@ -77,8 +78,8 @@ def eval_batch(args: EvalBatchConfig):
             algo_name_raw = config.get('prefix', 'unknown')
             algo_name_lower = algo_name_raw.lower()
 
-            eval_script = f'examples.eval.eval_{algo_name_lower}'
-            cmd = ['python3', '-m', eval_script, '--path', full_path, '--device', 'cuda:1', '--best', str(args.best).lower()]
+            eval_script = f'examples.eval.eval_pdt'
+            cmd = ['python3', '-m', eval_script, '--path', full_path, '--device', args.device, '--best', str(args.best).lower()]
 
             # Add optional overrides
             if args.use_verification is not None:
