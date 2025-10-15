@@ -8,7 +8,7 @@ class PDTTrainConfig:
     project: str = "Benchmark"
     group: str = None
     name: Optional[str] = None
-    prefix: Optional[str] = "PDT"
+    prefix: Optional[str] = "PDT_shield"
     suffix: Optional[str] = ""
     logdir: Optional[str] = "logs"
     verbose: bool = True
@@ -29,9 +29,9 @@ class PDTTrainConfig:
     residual_dropout: float = 0.1
     embedding_dropout: float = 0.1
     time_emb: bool = True
-    num_qr: int = 2
-    num_qc: int = 2
-    c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
+    num_qr: int = 4
+    num_qc: int = 4
+    c_hidden_sizes: Tuple[int, ...] = (256, 256)
     use_verification: bool = True
     infer_q: bool = True
     # training params
