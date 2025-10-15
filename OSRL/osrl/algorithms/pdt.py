@@ -566,8 +566,11 @@ class PDTTrainer:
             target_qc = (n_costs + target_qc.unsqueeze(-1) * discount_cost).detach()  # [batch_size, seq_len]
         else:
             target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
-            target_qr = rewards[:, :-1] + self.model.gamma * target_qr[:, 1:]  # [batch_size, seq_len - 1]
-            target_qc = rewards[:, :-1] + self.model.cost_gamma * target_qc[:, 1:]  # [batch_size, seq_len - 1]
+            target_qr = target_qr[:, 1:]
+            target_qc = target_qc[:, 1:]
+            safe_mask = (target_qc <= costs_return[:, 1:]).to(torch.float)
+            target_qr = rewards[:, :-1] + self.model.gamma * target_qr * safe_mask  # [batch_size, seq_len - 1]
+            target_qc = rewards[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
             target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
 
@@ -577,10 +580,11 @@ class PDTTrainer:
         # mask out last valid index in each sequence
         mask_ = mask.clone()
         mask_[batch_idxs, last_idxs] = 0
-        mask_ = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
+        mask_r = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
+        mask_c = mask_.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
 
-        critic_loss = F.mse_loss(current_qrs[mask_ > 0], target_qr[mask_ > 0])
-        cost_critic_loss = F.mse_loss(current_qcs[mask_ > 0], target_qc[mask_ > 0])
+        critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0])
+        cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0])
 
         self.critic_optim.zero_grad()
         critic_loss.backward()
@@ -647,11 +651,11 @@ class PDTTrainer:
         loss += self.qr_weight * qr_loss
 
         # verification
-        qc_loss = (qc_preds - costs_return)[mask > 0] # only penalize unsafe actions
-        qc_loss = qc_loss.relu().pow(2).mean()
+        # qc_loss = (qc_preds - costs_return)[mask > 0] # only penalize unsafe actions
+        # qc_loss = qc_loss.relu().pow(2).mean()
 
-        if self.model.use_verification:
-            loss += self.qc_weight * qc_loss
+        # if self.model.use_verification:
+        #     loss += self.qc_weight * qc_loss
 
         self.actor_optim.zero_grad()
         loss.backward()
@@ -682,7 +686,7 @@ class PDTTrainer:
             critic_loss=critic_loss.item(),
             cost_critic_loss=cost_critic_loss.item(),
             qr_loss=qr_preds.mean().item(),
-            qc_loss=qc_loss.item(),
+            # qc_loss=qc_loss.item(),
         )
 
     def evaluate(self, num_rollouts, target_returns, target_cost):
