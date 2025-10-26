@@ -8,7 +8,7 @@ class PDTTrainConfig:
     project: str = "Benchmark"
     group: str = None
     name: Optional[str] = None
-    prefix: Optional[str] = "PDT_shield"
+    prefix: Optional[str] = "PDT_lag"
     suffix: Optional[str] = ""
     logdir: Optional[str] = "logs"
     verbose: bool = True
@@ -48,7 +48,7 @@ class PDTTrainConfig:
     lr_warmup_steps: int = 500
     reward_scale: float = 0.1
     cost_scale: float = 1
-    num_workers: int = 8
+    num_workers: int = 6
     tau: float = 0.005
     gamma: float = 0.999
     cost_gamma: float = 0.99999
@@ -226,7 +226,7 @@ class PDTBallCircleConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineBallCircle-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((700.0,), 10), ((750.0,), 20), ((800.0,), 40))
+                          ...] = (((700.0, 650.0, 600.0), 10), ((750.0, 700.0, 650.0), 20), ((800.0, 750.0, 700.0), 40))
     # augmentation param
     deg: int = 2
     max_reward: float = 1000.0
@@ -242,7 +242,7 @@ class PDTCarButton1Config(PDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarButton1Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((35.0,), 20), ((35.0,), 40), ((35.0,), 80))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 45.0
@@ -258,7 +258,7 @@ class PDTCarButton2Config(PDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarButton2Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((40.0,), 20), ((40.0,), 40), ((40.0,), 80))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 50.0
@@ -306,7 +306,7 @@ class PDTCarGoal1Config(PDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarGoal1Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((40.0,), 20), ((40.0,), 40), ((40.0,), 80))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((40.0, 35.0, 25.0), 40), ((40.0, 35.0, 25.0), 80), ((40.0, 35.0, 25.0), 120))
     # augmentation param
     deg: int = 1
     max_reward: float = 50.0
@@ -322,7 +322,7 @@ class PDTCarGoal2Config(PDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarGoal2Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((30.0,), 20), ((30.0,), 40), ((30.0,), 80))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((30.0, 25.0, 20.0), 40), ((30.0, 25.0, 20.0), 80), ((30.0, 25.0, 20.0), 120))
     # augmentation param
     deg: int = 1
     max_reward: float = 35.0
@@ -338,7 +338,7 @@ class PDTCarPush1Config(PDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarPush1Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((15.0,), 20), ((15.0,), 40), ((15.0,), 80))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((15.0, 12.0, 10.0), 40), ((15.0, 12.0, 10.0), 80), ((15.0, 12.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 20.0
@@ -354,7 +354,7 @@ class PDTCarPush2Config(PDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarPush2Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((12.0,), 20), ((12.0,), 40), ((12.0,), 80))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((12.0, 10.0, 8.0), 40), ((12.0, 10.0, 8.0), 80), ((12.0, 10.0, 8.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 15.0
@@ -516,7 +516,7 @@ class PDTHalfCheetahVelocityConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineHalfCheetahVelocityGymnasium-v1"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((2800.0,), 10), ((2800.0,), 20))
+                          ...] = (((3000.0, 2800.0, 2600.0), 20), ((3000.0, 2800.0, 2600.0), 40), ((3000.0, 2800.0, 2600.0), 80))
     # augmentation param
     deg: int = 1
     max_reward: float = 3000.0
@@ -533,7 +533,7 @@ class PDTHopperVelocityConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineHopperVelocityGymnasium-v1"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((1750.0,), 10), ((1750.0,), 20))
+                          ...] = (((2000.0, 1750.0, 1500.0), 20), ((2000.0, 1750.0, 1500.0), 40), ((2000.0, 1750.0, 1500.0), 80))
     # augmentation param
     deg: int = 1
     max_reward: float = 2000.0
@@ -550,7 +550,7 @@ class PDTSwimmerVelocityConfig(PDTTrainConfig):
     # training params
     task: str = "OfflineSwimmerVelocityGymnasium-v1"
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((160.0,), 20), ((160.0,), 40), ((160.0,), 80))
+                          ...] = (((200.0, 180.0, 160.0), 20), ((200.0, 180.0, 160.0), 40), ((200.0, 180.0, 160.0), 80))
     # augmentation param
     deg: int = 1
     max_reward: float = 250.0
