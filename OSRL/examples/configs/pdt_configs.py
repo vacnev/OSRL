@@ -8,7 +8,7 @@ class PDTTrainConfig:
     project: str = "Benchmark"
     group: str = None
     name: Optional[str] = None
-    prefix: Optional[str] = "PDT_lag"
+    prefix: Optional[str] = "PDT"
     suffix: Optional[str] = ""
     logdir: Optional[str] = "logs"
     verbose: bool = True
@@ -242,7 +242,7 @@ class PDTCarButton1Config(PDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarButton1Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((25.0, 20.0, 15.0), 40), ((25.0, 20.0, 15.0), 80), ((25.0, 20.0, 15.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 45.0
