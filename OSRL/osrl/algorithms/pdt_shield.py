@@ -10,7 +10,7 @@ from torch.distributions.beta import Beta
 from torch.nn import functional as F  # noqa
 from tqdm.auto import trange  # noqa
 
-from osrl.common.net import DiagGaussianActor, TransformerBlock, mlp, EnsembleQCritic, WeightsNet
+from osrl.common.net import DiagGaussianActor, TransformerBlock, mlp, EnsembleQCritic
 
 
 class PDT(nn.Module):
@@ -177,7 +177,6 @@ class PDT(nn.Module):
                                            activation=nn.Mish,
                                            )
         
-        self.actor_lag = WeightsNet(1, 512, 1)
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
@@ -445,7 +444,6 @@ class PDTTrainer:
             loss_state_weight: float = 0.0,
             qr_weight: float = 1.0,
             qc_weight: float = 1.0,
-            max_lag: float = 5.0,
             cost_reverse: bool = False,
             no_entropy: bool = False,
             n_step: bool = True,
@@ -465,7 +463,6 @@ class PDTTrainer:
         self.cost_reverse = cost_reverse
         self.no_entropy = no_entropy
         self.n_step = n_step
-        self.max_lag = max_lag
 
         self.actor_optim = torch.optim.AdamW(
             self.model.parameters(),
@@ -504,10 +501,6 @@ class PDTTrainer:
         self.cost_critic_scheduler = torch.optim.lr_scheduler.LambdaLR(
             self.cost_critic_optim,
             lambda steps: min((steps + 1) / lr_warmup_steps, 1),
-        )
-
-        self.lagrangian_optim = torch.optim.Adam(
-            self.model.actor_lag.parameters(), lr=actor_lr
         )
 
     def train_one_step(self, states, actions, returns, costs_return, time_steps, mask,
@@ -575,8 +568,8 @@ class PDTTrainer:
             target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
             target_qr = target_qr[:, 1:]
             target_qc = target_qc[:, 1:]
-            # safe_mask = (target_qc <= costs_return[:, 1:]).to(torch.float)
-            target_qr = rewards[:, :-1] + self.model.gamma * target_qr  # [batch_size, seq_len - 1]
+            safe_mask = (target_qc <= costs_return[:, 1:]).to(torch.float)
+            target_qr = rewards[:, :-1] + self.model.gamma * target_qr * safe_mask  # [batch_size, seq_len - 1]
             target_qc = rewards[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
             target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
@@ -608,8 +601,8 @@ class PDTTrainer:
 
         # ACTOR LOSS
 
-        # qr_actions, qc_actions = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
-        # bc_safe_mask = (qc_actions <= costs_return).to(torch.double) # shielding
+        qr_actions, qc_actions = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
+        bc_safe_mask = (qc_actions <= costs_return).to(torch.double) # shielding
 
         # cost_preds: [batch_size * seq_len, 2], costs: [batch_size * seq_len]
         cost_preds = cost_preds.reshape(-1, 2)
@@ -625,7 +618,7 @@ class PDTTrainer:
         acc = correct / total_num
 
         if self.stochastic:
-            log_likelihood = action_preds.log_prob(actions)[mask > 0].mean()
+            log_likelihood = action_preds.log_prob(actions)[bc_safe_mask * mask > 0].mean()
             entropy = action_preds.entropy()[mask > 0].mean()
             entropy_reg = self.model.temperature().detach()
             entropy_reg_item = entropy_reg.item()
@@ -655,32 +648,25 @@ class PDTTrainer:
 
         qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
 
-        log_lambda = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
-        log_lambda.data.clamp_(min=-20, max=self.max_lag)
-        lambd = log_lambda.exp()
-        lambd_detach = lambd.detach()
+        # mask_out unsafe actions
+        safe_mask = (qc_preds <= costs_return).to(torch.double) # shielding
 
-        qc_loss = lambd_detach * (qc_preds - costs_return)
-        q_loss = -qr_preds + qc_loss
-        q_loss = q_loss[mask > 0]
-        pf_loss = q_loss.mean() / (q_loss.abs().mean().detach() + 1e-8)
-        
-        loss += self.qr_weight * pf_loss
+        qr_preds = qr_preds[safe_mask * mask > 0]
+        qr_loss = -qr_preds.mean() / (qr_preds.abs().mean().detach() + 1e-8)
+        loss += self.qr_weight * qr_loss
+
+        # verification
+        # qc_loss = (qc_preds - costs_return)[mask > 0] # only penalize unsafe actions
+        # qc_loss = qc_loss.relu().pow(2).mean()
+
+        # if self.model.use_verification:
+        #     loss += self.qc_weight * qc_loss
 
         self.actor_optim.zero_grad()
         loss.backward()
         if self.clip_grad is not None:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad)
         self.actor_optim.step()
-
-        # update Lagrangian multiplier
-        loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
-        loss_lag = loss_lag.mean()
-        for param in self.model.actor_lag.parameters():
-            loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
-        self.lagrangian_optim.zero_grad()
-        loss_lag.backward()
-        self.lagrangian_optim.step()
 
         if self.stochastic:
             self.log_temperature_optimizer.zero_grad()
@@ -704,8 +690,8 @@ class PDTTrainer:
             cost_critic_lr=self.cost_critic_scheduler.get_last_lr()[0],
             critic_loss=critic_loss.item(),
             cost_critic_loss=cost_critic_loss.item(),
-            q_loss=q_loss.mean().item(),
-            loss_lag=loss_lag.item(),
+            qr_loss=qr_preds.mean().item(),
+            # qc_loss=qc_loss.item(),
         )
 
     def evaluate(self, num_rollouts, target_returns, target_cost):

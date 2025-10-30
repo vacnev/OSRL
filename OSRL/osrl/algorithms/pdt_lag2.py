@@ -608,8 +608,28 @@ class PDTTrainer:
 
         # ACTOR LOSS
 
-        # qr_actions, qc_actions = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
-        # bc_safe_mask = (qc_actions <= costs_return).to(torch.double) # shielding
+        qr_actions, qc_actions = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
+        qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
+
+        log_lambda = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
+        log_lambda.data.clamp_(min=-20, max=self.max_lag)
+        lambd = log_lambda.exp()
+
+        v_lag = qr_preds - lambd * (qc_preds - costs_return)
+        q_lag = qr_actions - lambd * (qc_actions - costs_return)
+        a_lag = q_lag - v_lag
+
+
+        a_lag = self.qr_weight * a_lag
+        weights = a_lag.exp().detach()
+        weights.data.clamp_(max=100)
+
+        # replace by softmax normalization
+        # beta = 2.0
+        # a_lag_ = a_lag / beta
+        # a_lag_ = a_lag_.masked_fill(padding_mask, float('-inf'))
+        # weights = F.softmax(a_lag_, dim=0)  # [batch_size, seq_len]
+        # weights = batch_size * weights.detach()  # keep gradients stable
 
         # cost_preds: [batch_size * seq_len, 2], costs: [batch_size * seq_len]
         cost_preds = cost_preds.reshape(-1, 2)
@@ -625,7 +645,7 @@ class PDTTrainer:
         acc = correct / total_num
 
         if self.stochastic:
-            log_likelihood = action_preds.log_prob(actions)[mask > 0].mean()
+            log_likelihood = (action_preds.log_prob(actions) * weights.unsqueeze(-1))[mask > 0].mean()
             entropy = action_preds.entropy()[mask > 0].mean()
             entropy_reg = self.model.temperature().detach()
             entropy_reg_item = entropy_reg.item()
@@ -650,22 +670,6 @@ class PDTTrainer:
         state_loss = (state_loss * mask[:, :-1].unsqueeze(-1)).mean()
 
         loss = act_loss + self.cost_weight * cost_loss + self.state_weight * state_loss
-
-        # PF improvement
-
-        qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
-
-        log_lambda = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
-        log_lambda.data.clamp_(min=-20, max=self.max_lag)
-        lambd = log_lambda.exp()
-        lambd_detach = lambd.detach()
-
-        qc_loss = lambd_detach * (qc_preds - costs_return)
-        q_loss = -qr_preds + qc_loss
-        q_loss = q_loss[mask > 0]
-        pf_loss = q_loss.mean() / (q_loss.abs().mean().detach() + 1e-8)
-        
-        loss += self.qr_weight * pf_loss
 
         self.actor_optim.zero_grad()
         loss.backward()
@@ -704,7 +708,7 @@ class PDTTrainer:
             cost_critic_lr=self.cost_critic_scheduler.get_last_lr()[0],
             critic_loss=critic_loss.item(),
             cost_critic_loss=cost_critic_loss.item(),
-            q_loss=q_loss.mean().item(),
+            a_lag=a_lag.mean().item(),
             loss_lag=loss_lag.item(),
         )
 
