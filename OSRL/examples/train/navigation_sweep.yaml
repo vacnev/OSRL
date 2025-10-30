@@ -1,0 +1,25 @@
+program: examples.train.train_cpq
+command:
+  - nice
+  - -n
+  - 10
+  - python3
+  - -m
+  - ${program}
+  - --project
+  - OSRL
+  - --device
+  - cpu
+  - ${args}
+method: grid
+name: cpq_navigation
+project: OSRL
+parameters:
+  task:
+    values: [OfflineCarButton1Gymnasium-v0, OfflineCarButton2Gymnasium-v0, OfflineCarPush1Gymnasium-v0, OfflineCarPush2Gymnasium-v0, OfflineCarGoal1Gymnasium-v0, OfflineCarGoal2Gymnasium-v0]
+  seed:
+    values: [0, 10, 20]
+  cost_limit:
+    values: [40.0, 80.0, 120.0]
+  update_steps:
+    value: 100_000

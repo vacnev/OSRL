@@ -12,16 +12,15 @@ command:
   - cuda
   - ${args}
 method: grid
-name: pdt_sweep_gymnasium
+name: pdt_sweep_gymnasium_lag_shield
 project: OSRL
 parameters:
   task:
-    values: [OfflinePointButton1Gymnasium-v0, OfflineCarButton1Gymnasium-v0, OfflinePointPush1Gymnasium-v0, OfflineCarPush1Gymnasium-v0, OfflinePointGoal1Gymnasium-v0, OfflineCarGoal1Gymnasium-v0]
+    values: [OfflineCarButton1Gymnasium-v0, OfflineCarButton2Gymnasium-v0] # , OfflineCarPush1Gymnasium-v0, OfflineCarGoal1Gymnasium-v0]
+            # [OfflineAntCircle-v0, OfflinePointButton1Gymnasium-v0, OfflineCarButton1Gymnasium-v0, OfflinePointPush1Gymnasium-v0, OfflineCarPush1Gymnasium-v0, OfflinePointGoal1Gymnasium-v0, OfflineCarGoal1Gymnasium-v0]
             #  OfflineSwimmerVelocityGymnasium-v1, OfflineWalker2dVelocityGymnasium-v1, OfflineHalfCheetahVelocityGymnasium-v1]
   qr_weight:
-    values: [3.0, 5.0]
-  qc_weight:
-    values: [0.01, 0.1]
+    values: [1.0, 3.0, 5.0, 8.0]
   seed:
     values: [0]
   update_steps:

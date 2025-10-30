@@ -1,0 +1,26 @@
+program: examples.train.train_cpq
+command:
+  - nice
+  - -n
+  - 10
+  - python3
+  - -m
+  - ${program}
+  - --project
+  - OSRL
+  - --device
+  - cpu
+  - ${args}
+method: grid
+name: cpq_bullet
+project: OSRL
+parameters:
+  task:
+    values: [OfflineAntCircle-v0, OfflineBallCircle-v0, OfflineCarCircle-v0, OfflineDroneCircle-v0]
+  seed:
+    values: [0, 10, 20]
+  cost_limit:
+    values: [10.0, 20.0, 40.0]
+  update_steps:
+    value: 100_000
+  
