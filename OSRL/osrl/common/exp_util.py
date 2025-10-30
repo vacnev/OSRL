@@ -49,12 +49,13 @@ def get_cfg_value(config, key):
     return "None"
 
 
-def load_config_and_model(path: str, best: bool = False):
+def load_config_and_model(path: str, best: bool = False, device: str = 'cpu'):
     '''
     Load the configuration and trained model from a specified directory.
 
     :param path: the directory path where the configuration and trained model are stored.
     :param best: whether to load the best-performing model or the most recent one. Defaults to False.
+    :param device: the device to map the model to (e.g., 'cpu', 'cuda:0').
 
     :return: a tuple containing the configuration dictionary and the trained model.
     :raises ValueError: if the specified directory does not exist.
@@ -69,7 +70,7 @@ def load_config_and_model(path: str, best: bool = False):
             model_file = "model_best.pt"
         model_path = osp.join(path, "checkpoint/" + model_file)
         print(f"load model from {model_path}")
-        model = torch.load(model_path)
+        model = torch.load(model_path, map_location=device)
         return config, model
     else:
         raise ValueError(f"{path} doesn't exist!")

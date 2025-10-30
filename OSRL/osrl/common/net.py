@@ -669,5 +669,7 @@ class DiagGaussianActor(nn.Module):
 
     def forward(self, obs):
         mu, log_std = self.mu(obs), self.log_std(obs)
+        log_std = torch.clamp(log_std, self.log_std_bounds[0], self.log_std_bounds[1])
         std = log_std.exp()
+        mu = torch.nan_to_num(mu, nan=0.0)
         return Normal(mu, std)
