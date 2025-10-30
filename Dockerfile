@@ -45,3 +45,4 @@ RUN pip install --upgrade pip setuptools wheel
 
 # Pre-install numpy to resolve OApackage build dependency issue
 RUN pip install numpy
+RUN pip install OApackage==2.7.6

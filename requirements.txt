@@ -4,10 +4,6 @@
 # Install local OSRL
 -e ./OSRL
 
-# Additional packages (numpy pre-installed in Dockerfile)
-OApackage==2.7.6
-
-
 # add common ML libraries
 matplotlib
 pandas

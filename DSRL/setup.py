@@ -2,23 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-import subprocess
-import sys
 from setuptools import find_packages, setup
-from setuptools.command.install import install
-
-
-class PostInstallCommand(install):
-    """Post-installation for metadrive extra."""
-    def run(self):
-        install.run(self)
-        # Install MetaDrive fork after base installation
-        if 'metadrive' in sys.argv or '[metadrive]' in ' '.join(sys.argv):
-            print("Installing MetaDrive fork...")
-            subprocess.check_call([
-                sys.executable, '-m', 'pip', 'install', '--no-deps',
-                'git+https://github.com/HenryLHH/metadrive_clean.git@main'
-            ])
 
 
 def get_version() -> str:
@@ -39,10 +23,8 @@ def get_install_requires() -> str:
 
 def get_extras_require() -> str:
     req = {
-        "metadrive": [
-            "panda3d==1.10.10",  # Install compatible panda3d first
-            # MetaDrive fork will be installed by PostInstallCommand
-        ],
+        "metadrive":
+        ["metadrive-simulator@git+https://github.com/HenryLHH/metadrive_clean.git@main"],
     }
     return req
 
@@ -80,7 +62,4 @@ setup(
     ),
     install_requires=get_install_requires(),
     extras_require=get_extras_require(),
-    cmdclass={
-        'install': PostInstallCommand,
-    },
 )

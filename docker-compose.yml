@@ -7,6 +7,7 @@ services:
     container_name: OSRL
     volumes:
       - .:/workspace
+      - /var/tmp/xnevyhos/osrl-datasets:/var/tmp/xnevyhos/osrl-datasets
     deploy:
       resources:
         reservations:
@@ -18,5 +19,5 @@ services:
     tty: true
     working_dir: /workspace
     environment:
-      - DSRL_DATASET_DIR=/workspace/DSRL/datasets
+      - DSRL_DATASET_DIR=/var/tmp/xnevyhos/osrl-datasets
     network_mode: host
