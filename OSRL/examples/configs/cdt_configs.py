@@ -230,7 +230,7 @@ class CDTCarButton1Config(CDTTrainConfig):
     episode_len: int = 1000
     # training params
     task: str = "OfflineCarButton1Gymnasium-v0"
-    target_returns: Tuple[Tuple[float, ...], ...] = ((25.0, 40), (25.0, 80), (25.0, 120))
+    target_returns: Tuple[Tuple[float, ...], ...] = ((20.0, 40), (20.0, 80), (20.0, 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 45.0
