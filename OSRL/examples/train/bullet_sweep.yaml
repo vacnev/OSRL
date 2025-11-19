@@ -1,18 +1,17 @@
-program: examples.train.train_cpq
 command:
   - nice
   - -n
-  - 10
+  - 19
   - python3
   - -m
-  - ${program}
+  - examples.train.train_bearl
   - --project
   - OSRL
   - --device
   - cpu
   - ${args}
 method: grid
-name: cpq_bullet
+name: bearl_bullet
 project: OSRL
 parameters:
   task:
@@ -20,7 +19,7 @@ parameters:
   seed:
     values: [0, 10, 20]
   cost_limit:
-    values: [10.0, 20.0, 40.0]
+    values: [20.0, 40.0]
   update_steps:
     value: 100_000
   

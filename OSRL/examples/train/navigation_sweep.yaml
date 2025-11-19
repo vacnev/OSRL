@@ -1,8 +1,8 @@
-program: examples.train.train_cpq
+program: examples.train.train_bearl
 command:
   - nice
   - -n
-  - 10
+  - 19
   - python3
   - -m
   - ${program}
@@ -12,7 +12,7 @@ command:
   - cpu
   - ${args}
 method: grid
-name: cpq_navigation
+name: bearl_navigation
 project: OSRL
 parameters:
   task:
