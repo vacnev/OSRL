@@ -25,7 +25,7 @@ class CPQTrainConfig:
     dataset: str = None
     seed: int = 0
     device: str = "cpu"
-    threads: int = 4
+    threads: int = 6
     reward_scale: float = 0.1
     cost_scale: float = 1
     actor_lr: float = 0.0001
