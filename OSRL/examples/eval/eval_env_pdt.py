@@ -4,6 +4,7 @@ import subprocess
 import yaml
 import csv
 import re
+import numpy as np
 from dataclasses import dataclass
 from typing import Optional
 
@@ -15,7 +16,7 @@ class EvalBatchConfig:
     base_path: str = "logs/OfflineAntCircle-v0/cost-5"
     use_verification: Optional[bool] = None
     infer_q: Optional[bool] = None
-    best: bool = True
+    best: bool = False
     device: str = field(default="cuda")
 
 def parse_eval_output(output):
@@ -57,13 +58,14 @@ def eval_batch(args: EvalBatchConfig):
 
     os.makedirs('results', exist_ok=True)
 
-    csv_filename = f'results/{env_name}_{exp_name}.csv'
+    csv_filename = f'results/{env_name}_{exp_name}_{args.best}.csv'
     fieldnames = ['algo_name', 'target_reward', 'real_reward', 'normalized_reward', 'target_cost', 'real_cost', 'normalized_cost']
 
     with open(csv_filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
+        total_norm_ret, total_norm_cost = [], []
         subdirs = [d for d in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, d))]
         for subdir in subdirs:
             full_path = os.path.join(base_path, subdir)
@@ -100,16 +102,43 @@ def eval_batch(args: EvalBatchConfig):
                     writer.writerow(row)
                     norm_ret += res['normalized_reward']
                     norm_cost += res['normalized_cost']
+                    total_norm_ret.append(res['normalized_reward'])
+                    total_norm_cost.append(res['normalized_cost'])
 
                 if parsed_results:
                     avg_norm_ret = norm_ret / len(parsed_results)
                     avg_norm_cost = norm_cost / len(parsed_results)
                     print(f"Avg normalized reward for {subdir}: {avg_norm_ret}, Avg normalized cost: {avg_norm_cost}")
+                    writer.writerow({
+                        'algo_name': f"{subdir}_avg",
+                        'target_reward': '',
+                        'real_reward': '',
+                        'normalized_reward': avg_norm_ret,
+                        'target_cost': '',
+                        'real_cost': '',
+                        'normalized_cost': avg_norm_cost
+                    })
 
                 csvfile.flush()
 
             except Exception as e:
                 print(f"Exception running {cmd}: {e}")
+
+        if subdirs:
+            # Compute total averages and stds
+            total_avg_norm_ret = np.mean(total_norm_ret)
+            total_avg_norm_cost = np.mean(total_norm_cost)
+            total_std_norm_ret = np.std(total_norm_ret)
+            total_std_norm_cost = np.std(total_norm_cost)
+            writer.writerow({
+                'algo_name': "total_norm_avg",
+                'target_reward': '',
+                'real_reward': total_avg_norm_ret,
+                'normalized_reward': total_std_norm_ret,
+                'target_cost': '',
+                'real_cost': total_avg_norm_cost,
+                'normalized_cost': total_std_norm_cost
+            })
 
     print(f"Results saved to {csv_filename}")
 
