@@ -347,6 +347,15 @@ class CCAC(nn.Module):
         a = a.data.numpy() if self.device == "cpu" else a.data.cpu().numpy()
         logp_a = logp_a.data.numpy() if self.device == "cpu" else logp_a.data.cpu(
         ).numpy()
+
+        # check monotonicity of critics
+        # for thd in range(1, 100):
+        #     sc = torch.cat([obs[:, :-1], torch.tensor([[thd]], device=obs.device)], dim=-1)
+        #     qr = self.critic.predict(sc, a)
+        #     qc = self.cost_critic.predict(sc, a)
+        #     print(f"thd: {thd}, Q_r: {qr[0][0].item():.2f}, Q_c: {qc[0][0].item():.2f}")
+            
+
         return np.squeeze(a, axis=0), np.squeeze(logp_a)
 
 

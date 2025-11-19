@@ -511,20 +511,7 @@ class PDTTrainer:
         )
 
 
-        self.update_steps = 100000
-        self.alpha = 1.0
-        self.step = 0
-
-        self.alpha_end = 0.1
-        self.decay = (self.alpha_end / self.alpha) ** (1.0 / self.update_steps)
-
-    def update_alpha(self):
-        self.alpha = max(0.0, 1.0 - self.step / self.update_steps)  # linear decay
-        self.step += 1
-
-    # def update_alpha(self):
-    #     self.alpha = max(self.alpha_end, self.alpha * self.decay)  # exponential decay
-    #     self.step += 1
+        self.alpha = self.qr_weight
 
     def train_one_step(self, states, actions, returns, costs_return, time_steps, mask,
                        costs):
@@ -674,6 +661,7 @@ class PDTTrainer:
         mu_expanded = action_preds.loc.unsqueeze(0).expand(N, -1, -1, -1)  # [N, batch_size, seq_len, action_dim]
         std_expanded = action_preds.scale.unsqueeze(0).expand(N, -1, -1, -1)  # [N, batch_size, seq_len, action_dim]
         action_preds = torch.distributions.Normal(mu_expanded, std_expanded)
+        mask_expanded = mask.unsqueeze(0).expand(N, -1, -1)  # [N, batch_size, seq_len]
 
         # sample actions from current policy
         q_actions = action_preds.sample() # [N, batch_size, seq_len, action_dim]
@@ -692,8 +680,8 @@ class PDTTrainer:
         weights = weights.detach()
         weights.data.clamp_(max=100.0)
 
-        awr_loss = action_preds.log_prob(q_actions) * weights  # [N, batch_size, seq_len]
-        awr_loss = -awr_loss[mask > 0].mean()
+        awr_loss = action_preds.log_prob(q_actions) * weights.unsqueeze(-1)  # [N, batch_size, seq_len, action_dim]
+        awr_loss = -awr_loss[mask_expanded > 0].mean()
         
         loss = self.alpha * loss + (1 - self.alpha) * awr_loss
 
@@ -722,7 +710,6 @@ class PDTTrainer:
         self.actor_scheduler.step()
         self.critic_scheduler.step()
         self.cost_critic_scheduler.step()
-        self.update_alpha()
         self.logger.store(
             tab="train",
             all_loss=loss.item(),
@@ -737,7 +724,6 @@ class PDTTrainer:
             cost_critic_loss=cost_critic_loss.item(),
             awr_loss=awr_loss.item(),
             loss_lag=loss_lag.item(),
-            alpha=self.alpha,
         )
 
     def evaluate(self, num_rollouts, target_returns, target_cost):

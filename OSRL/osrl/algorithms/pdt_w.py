@@ -514,16 +514,16 @@ class PDTTrainer:
         self.alpha = 1.0
         self.step = 0
 
-        self.alpha_end = 0.1
+        self.alpha_end = 0.2
         self.decay = (self.alpha_end / self.alpha) ** (1.0 / self.update_steps)
 
-    def update_alpha(self):
-        self.alpha = max(0.0, 1.0 - self.step / self.update_steps)  # linear decay
-        self.step += 1
-
     # def update_alpha(self):
-    #     self.alpha = max(self.alpha_end, self.alpha * self.decay)  # exponential decay
+    #     self.alpha = max(0.0, 1.0 - self.step / self.update_steps)  # linear decay
     #     self.step += 1
+
+    def update_alpha(self):
+        self.alpha = max(self.alpha_end, self.alpha * self.decay)  # exponential decay
+        self.step += 1
 
     def train_one_step(self, states, actions, returns, costs_return, time_steps, mask,
                        costs):
