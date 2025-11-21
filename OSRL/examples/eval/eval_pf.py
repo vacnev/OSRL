@@ -98,7 +98,7 @@ def eval_pf(args: PFConfig):
         print(f"Error: {base_path} is not a directory.")
         return
 
-    env_name = os.path.basename(base_path)
+    env_name = os.path.basename(os.path.dirname(base_path))
 
     os.makedirs('results/pf', exist_ok=True)
 
@@ -123,11 +123,14 @@ def eval_pf(args: PFConfig):
             cmd = ['python3', '-m', f'examples.eval.eval_{args.algo_name.lower()}', '--path', full_path, '--device', args.device, '--best', str(args.best).lower()]
 
             if args.algo_name.lower() == 'ccac':
-                cmd += ['--target_costs'] + str(cost_list)
+                cmd += ['--target_costs'] + [str(cost_list)]
             else:
-                cmd += ['--costs'] + str(cost_list)
+                cmd += ['--costs'] + [str(cost_list)]
                 if returns_list:
-                    cmd += ['--returns'] + str(returns_list)
+                    if args.algo_name.lower() == 'pdt':
+                        cmd += ['--returns'] + [str(returns_list)]
+                    else:
+                        cmd += ['--returns'] + [str(returns_list)]
 
             try:
                 result = subprocess.run(cmd, capture_output=True, text=True, cwd='/workspace/OSRL')

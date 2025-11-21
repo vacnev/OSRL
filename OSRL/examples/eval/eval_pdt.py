@@ -98,6 +98,11 @@ def eval(args: EvalConfig):
     norm_ret, norm_cost = 0, 0
     # for target_ret, target_cost in zip(rets, costs):
     for target_ret, target_cost in cfg["target_returns"]:
+
+        # for bullet circle pf
+        # target_ret = (target_ret, target_ret - 50, target_ret - 100)
+
+
         seed_all(cfg["seed"])
         env.set_target_cost(target_cost)
         ret, cost, length = trainer.evaluate(args.eval_episodes,
