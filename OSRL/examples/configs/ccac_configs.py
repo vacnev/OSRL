@@ -32,7 +32,7 @@ class CCACTrainConfig:
     critic_lr: float = 0.001
     vae_lr: float = 0.001
     cost_conditioned: bool = True
-    cost_limit: int = 10
+    cost_limit: int = 5
     episode_len: int = 300
     batch_size: int = 512
     update_steps: int = 200_000
