@@ -79,7 +79,7 @@ class PDT(nn.Module):
         tau: float = 0.005,
         gamma: float = 0.99,
         cost_gamma: float = 0.99,
-        use_verification: bool = True,
+        use_verification: bool = False,
         infer_q: bool = True,
     ):
         super().__init__()
@@ -399,7 +399,7 @@ class PDTTrainer:
         cost_scale (float): The scaling factor for the constraint cost.
         loss_cost_weight (float): The weight for the cost loss.
         loss_state_weight (float): The weight for the state loss.
-        qr_weight (float): Weight for the reward critic loss (improvement).
+        eta (float): Weight for the lagrangian loss.
         cost_reverse (bool): Whether to reverse the cost.
         no_entropy (bool): Whether to use entropy.
         n_step (bool): Whether to use n-step returns.
@@ -425,7 +425,7 @@ class PDTTrainer:
             cost_scale: float = 1.0,
             loss_cost_weight: float = 0.0,
             loss_state_weight: float = 0.0,
-            qr_weight: float = 1.0,
+            eta: float = 1.0,
             max_lag: float = 5.0,
             cost_reverse: bool = False,
             no_entropy: bool = False,
@@ -441,7 +441,7 @@ class PDTTrainer:
         self.device = device
         self.cost_weight = loss_cost_weight
         self.state_weight = loss_state_weight
-        self.qr_weight = qr_weight
+        self.eta = eta
         self.cost_reverse = cost_reverse
         self.no_entropy = no_entropy
         self.n_step = n_step
@@ -641,7 +641,7 @@ class PDTTrainer:
         q_loss = q_loss[mask > 0]
         pf_loss = q_loss.mean() / (q_loss.abs().mean().detach() + 1e-8)
         
-        loss += self.qr_weight * pf_loss
+        loss += self.eta * pf_loss
 
         self.actor_optim.zero_grad()
         loss.backward()
