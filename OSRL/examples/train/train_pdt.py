@@ -140,7 +140,6 @@ def train(args: PDTTrainConfig):
                          loss_cost_weight=args.loss_cost_weight,
                          loss_state_weight=args.loss_state_weight,
                          qr_weight=args.qr_weight,
-                         qc_weight=args.qc_weight,
                          cost_reverse=args.cost_reverse,
                          no_entropy=args.no_entropy,
                          n_step=args.n_step,
