@@ -1,14 +1,9 @@
-# Install local DSRL with MetaDrive support
--e ./DSRL
-
-# Install local OSRL
--e ./OSRL
-
 # add common ML libraries
 matplotlib
 pandas
 scikit-learn
 seaborn
 torch==2.8.0
-
+gltf
+panda3d==1.10.10
 

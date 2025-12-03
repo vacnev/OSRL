@@ -85,8 +85,7 @@ class PDTTrainConfig:
     loss_cost_weight: float = 0.02
     loss_state_weight: float = 0
     cost_reverse: bool = False
-    qr_weight: float = 5.0
-    qc_weight: float = 0.1
+    qr_weight: float = 8.0
     # pf only mode param
     pf_only: bool = False
     rmin: float = 300
@@ -260,7 +259,7 @@ class PDTCarButton2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    qr_weight: float = 1.0
+    qr_weight: float = 8.0
     # training params
     task: str = "OfflineCarButton2Gymnasium-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
@@ -360,7 +359,7 @@ class PDTCarPush2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    qr_weight: float = 1.0
+    qr_weight: float = 8.0
     # training params
     task: str = "OfflineCarPush2Gymnasium-v0"
     target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((12.0, 10.0, 8.0), 40), ((12.0, 10.0, 8.0), 80), ((12.0, 10.0, 8.0), 120))

@@ -264,6 +264,10 @@ def train(args: PDTTrainConfig):
                 best_idx = step
                 logger.save_checkpoint(suffix="best")
 
+            # safe halfway model
+            if (step + 1) == args.update_steps // 2:
+                logger.save_checkpoint(suffix="halfway")
+
             logger.store(tab="train", best_idx=best_idx)
             logger.write(step, display=False)
 

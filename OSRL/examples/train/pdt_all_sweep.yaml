@@ -1,4 +1,4 @@
-program: examples.train.train_cdt
+program: examples.train.train_pdt
 command:
   - nice
   - -n
@@ -12,17 +12,17 @@ command:
   - cuda
   - ${args}
 method: grid
-name: cdt_all_sweep_seeds
+name: pdt_all_sweep
 project: OSRL
 parameters:
   task:
-    values: [OfflineAntCircle-v0, OfflineBallCircle-v0, OfflineCarCircle-v0, OfflineDroneCircle-v0,
-            OfflineSwimmerVelocityGymnasium-v1, OfflineHopperVelocityGymnasium-v1, OfflineHalfCheetahVelocityGymnasium-v1,
+    values: # [OfflineAntCircle-v0, OfflineBallCircle-v0, OfflineCarCircle-v0, OfflineDroneCircle-v0,
+            [OfflineSwimmerVelocityGymnasium-v1, OfflineHopperVelocityGymnasium-v1, OfflineHalfCheetahVelocityGymnasium-v1,
             OfflineCarButton1Gymnasium-v0, OfflineCarButton2Gymnasium-v0, OfflineCarPush1Gymnasium-v0, OfflineCarPush2Gymnasium-v0, OfflineCarGoal1Gymnasium-v0, OfflineCarGoal2Gymnasium-v0]
   # qr_weight:
   #   values: [8.0]
   seed:
-    values: [0, 10, 20]
+    values: [0, 10, 20, 30, 40]
   update_steps:
-    value: 100_000
+    value: 200_000
   

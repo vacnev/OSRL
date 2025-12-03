@@ -364,23 +364,6 @@ class PDT(nn.Module):
 
         qr_preds, qc_preds = self.pred_critics(sc_rpt, action_preds)
 
-        # print for the first 3 last qvals and corresponding ctg rtg
-        # print("QVALS: ", qr_preds)
-        # print("RTGS: ", returns_to_go[:, -1])
-        # print("QC VALS: ", qc_preds)
-        # print("CTGS: ", costs_to_go_rpt[0])
-        # print("ACTIONS: ", action_preds)
-
-        # # check monotonicity of Q values
-        # last_state = states_rpt[:1]
-        # last_action = action_preds[:1]
-        # for thd in range(1, 100):
-        #     sc = torch.cat([last_state, torch.tensor([[thd]], device=last_state.device)], dim=-1)
-        #     qr, qc = self.pred_critics(sc, last_action)
-        #     print(f"CTG: {thd}, QR: {qr[0].item()}, QC: {qc[0].item()}")
-            
-
-
         # Verification filtering to filter out unsafe actions
         if self.use_verification:
             safe_mask = (qc_preds <= costs_to_go[0, -1])
@@ -417,7 +400,6 @@ class PDTTrainer:
         loss_cost_weight (float): The weight for the cost loss.
         loss_state_weight (float): The weight for the state loss.
         qr_weight (float): Weight for the reward critic loss (improvement).
-        qc_weight (float): Weight for the cost critic loss (verification).
         cost_reverse (bool): Whether to reverse the cost.
         no_entropy (bool): Whether to use entropy.
         n_step (bool): Whether to use n-step returns.
@@ -444,7 +426,6 @@ class PDTTrainer:
             loss_cost_weight: float = 0.0,
             loss_state_weight: float = 0.0,
             qr_weight: float = 1.0,
-            qc_weight: float = 1.0,
             max_lag: float = 5.0,
             cost_reverse: bool = False,
             no_entropy: bool = False,
@@ -461,7 +442,6 @@ class PDTTrainer:
         self.cost_weight = loss_cost_weight
         self.state_weight = loss_state_weight
         self.qr_weight = qr_weight
-        self.qc_weight = qc_weight
         self.cost_reverse = cost_reverse
         self.no_entropy = no_entropy
         self.n_step = n_step
@@ -575,7 +555,6 @@ class PDTTrainer:
             target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
             target_qr = target_qr[:, 1:]
             target_qc = target_qc[:, 1:]
-            # safe_mask = (target_qc <= costs_return[:, 1:]).to(torch.float)
             target_qr = rewards[:, :-1] + self.model.gamma * target_qr  # [batch_size, seq_len - 1]
             target_qc = rewards[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
@@ -607,9 +586,6 @@ class PDTTrainer:
         self.model.sync_target_networks()
 
         # ACTOR LOSS
-
-        # qr_actions, qc_actions = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
-        # bc_safe_mask = (qc_actions <= costs_return).to(torch.double) # shielding
 
         # cost_preds: [batch_size * seq_len, 2], costs: [batch_size * seq_len]
         cost_preds = cost_preds.reshape(-1, 2)

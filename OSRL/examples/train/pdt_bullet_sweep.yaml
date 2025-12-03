@@ -15,11 +15,11 @@ method: grid
 name: pdt_sweep_bullet
 project: OSRL
 parameters:
-  qr_weight:
-    values: [8.0]
+  # qr_weight:
+  #   values: [8.0]
   seed:
-    values: [10, 20]
+    values: [30, 40]
   update_steps:
     value: 100_000
   task:
-    values: [OfflineCarCircle-v0]
+    values: [OfflineCarCircle-v0, OfflineAntCircle-v0, OfflineDroneCircle-v0, OfflineBallCircle-v0]

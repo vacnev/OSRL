@@ -104,7 +104,7 @@ def eval_batch(args: EvalBatchConfig):
     os.makedirs('results', exist_ok=True)
     os.makedirs(f'results/{env_name}', exist_ok=True)
 
-    csv_filename = f'results/{env_name}/{exp_name}_{args.algo_name}_no_verif.csv'
+    csv_filename = f'results/{env_name}/{exp_name}_{args.algo_name}_no_q.csv'
     fieldnames = ['algo_name', 'target_reward', 'real_reward', 'normalized_reward', 'target_cost', 'real_cost', 'normalized_cost']
 
     with open(csv_filename, 'w', newline='') as csvfile:
