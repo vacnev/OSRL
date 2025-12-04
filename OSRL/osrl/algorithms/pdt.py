@@ -403,7 +403,6 @@ class PDTTrainer:
         cost_reverse (bool): Whether to reverse the cost.
         no_entropy (bool): Whether to use entropy.
         n_step (bool): Whether to use n-step returns.
-        use_verification (bool): Whether to use verification critic.
         device (str): The device to use for training (e.g. "cpu" or "cuda").
 
     """

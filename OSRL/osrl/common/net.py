@@ -262,8 +262,8 @@ class EnsembleQCritic(nn.Module):
         # Without squeeze, the training stability will be greatly affected!
         # For instance, shape [3] - shape[3,1] = shape [3, 3] instead of shape [3]
         data = obs if act is None else torch.cat([obs, act], dim=-1)
-        return [torch.squeeze(q(data), -1) for q in self.q_nets]
-        # return [torch.squeeze(F.softplus(q(data)), -1) for q in self.q_nets]
+        # return [torch.squeeze(q(data), -1) for q in self.q_nets]
+        return [torch.squeeze(F.softplus(q(data)), -1) for q in self.q_nets]
 
     def predict(self, obs, act):
         q_list = self.forward(obs, act)
