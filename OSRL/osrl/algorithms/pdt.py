@@ -177,7 +177,7 @@ class PDT(nn.Module):
                                            activation=nn.Mish,
                                            )
         
-        self.actor_lag = WeightsNet(1, 512, 1)
+        self.actor_lag = WeightsNet(1, 128, 1)
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
@@ -559,17 +559,22 @@ class PDTTrainer:
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
             target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
 
-        target_qr = target_qr.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
-        target_qc = target_qc.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
+        # target_qr = target_qr.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
+        # target_qc = target_qc.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
 
         # mask out last valid index in each sequence
         mask_ = mask.clone()
         mask_[batch_idxs, last_idxs] = 0
-        mask_r = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
-        mask_c = mask_.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
+        # mask_r = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
+        # mask_c = mask_.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
 
-        critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0])
-        cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0])
+        # critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0])
+        # cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0])
+
+        critic_loss, cost_critic_loss = 0.0, 0.0
+        for i in range(current_qrs.shape[0]):
+            critic_loss += F.mse_loss(current_qrs[i][mask_ > 0], target_qr[mask_ > 0])
+            cost_critic_loss += F.mse_loss(current_qcs[i][mask_ > 0], target_qc[mask_ > 0])
 
         self.critic_optim.zero_grad()
         critic_loss.backward()
@@ -652,7 +657,7 @@ class PDTTrainer:
         loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
         loss_lag = loss_lag.mean()
         for param in self.model.actor_lag.parameters():
-            loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
+            loss_lag += 0.1 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
         self.lagrangian_optim.step()

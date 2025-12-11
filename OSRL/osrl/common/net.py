@@ -481,10 +481,10 @@ class Classifier(nn.Module):
 
 
 class WeightsNet(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, weight_lim=5):
+    def __init__(self, input_size, hidden_size, output_size, activation=nn.ReLU, weight_lim=5):
         super(WeightsNet, self).__init__()
         self.net = mlp([input_size, hidden_size, 
-                        hidden_size, output_size], nn.ReLU)
+                        hidden_size, output_size], activation)
         
         self.weight_lim = weight_lim
         

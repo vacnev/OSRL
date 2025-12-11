@@ -9,7 +9,7 @@ class PDTTrainConfig:
     group: str = None
     name: Optional[str] = None
     prefix: Optional[str] = "PDT"
-    suffix: Optional[str] = ""
+    suffix: Optional[str] = "final"
     logdir: Optional[str] = "logs"
     verbose: bool = True
     # dataset params
@@ -29,10 +29,10 @@ class PDTTrainConfig:
     residual_dropout: float = 0.1
     embedding_dropout: float = 0.1
     time_emb: bool = True
-    num_qr: int = 2
-    num_qc: int = 2
+    num_qr: int = 4
+    num_qc: int = 4
     c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
-    use_verification: bool = False
+    use_verification: bool = True
     infer_q: bool = True
     # training params
     task: str = "OfflineCarCircle-v0"
@@ -85,7 +85,8 @@ class PDTTrainConfig:
     loss_cost_weight: float = 0.02
     loss_state_weight: float = 0
     cost_reverse: bool = False
-    eta: float = 8.0
+    eta: float = 5.0
+    max_lag: float = 5.0
     # pf only mode param
     pf_only: bool = False
     rmin: float = 300
