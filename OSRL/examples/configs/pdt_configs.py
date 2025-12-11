@@ -86,6 +86,7 @@ class PDTTrainConfig:
     loss_state_weight: float = 0
     cost_reverse: bool = False
     qr_weight: float = 8.0
+    max_lag: float = 5.0
     # pf only mode param
     pf_only: bool = False
     rmin: float = 300
