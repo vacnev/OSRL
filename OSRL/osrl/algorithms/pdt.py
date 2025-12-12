@@ -635,9 +635,11 @@ class PDTTrainer:
 
         qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
 
-        log_lambda = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
-        log_lambda.data.clamp_(min=-20, max=self.max_lag)
-        lambd = log_lambda.exp()
+        # log_lambda = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
+        # log_lambda.data.clamp_(min=-20, max=self.max_lag)
+        # lambd = log_lambda.exp()
+        lambd = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
+        lambd = torch.exp(torch.tensor(self.max_lag)) * torch.sigmoid(lambd)
         lambd_detach = lambd.detach()
 
         qc_loss = lambd_detach * (qc_preds - costs_return)
@@ -657,7 +659,7 @@ class PDTTrainer:
         loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
         loss_lag = loss_lag.mean()
         for param in self.model.actor_lag.parameters():
-            loss_lag += 0.1 * torch.norm(param)**2  # L2 regularization
+            loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
         self.lagrangian_optim.step()
