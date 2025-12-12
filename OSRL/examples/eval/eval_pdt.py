@@ -15,7 +15,7 @@ from osrl.common.exp_util import load_config_and_model, seed_all
 @dataclass
 class EvalConfig:
     path: str = "log/.../checkpoint/model.pt"
-    returns: List[float] = field(default=[300, 400, 500], is_mutable=True)
+    returns: List[List[float]] = field(default=[[300], [400], [500]], is_mutable=True)
     costs: List[float] = field(default=[10, 10, 10], is_mutable=True)
     use_verification: bool = True
     infer_q: bool = True

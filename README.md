@@ -17,8 +17,8 @@ Repo for "<a href="https://openreview.net/forum?id=nrRkAAAufl" target="_blank">C
 We provide a docker-compose container environment for a convenient, isolated instalation. Please, first build and run the container, then install the packages inside it:
 
 ``` bash
-docker-compose build
-docker-compose up
+docker-compose up -d --build
+docker exec -it OSRL bash
 bash ./install.sh
 ```
 
@@ -27,7 +27,7 @@ bash ./install.sh
 To train a PDT agent, simply run:
 ``` bash
 cd OSRL
-python3 -m examples.train.train_pdt --task <env_name> --param1 <args1> ... 
+python3 -m examples.train.train_pdt --device cuda --task <env_name> --param1 <args1> ... 
 ```
 By default, the config file and the logs during training will be written to `logs\` folder and the training plots can be viewed online using Wandb.
 The default parameters can be found in `OSRL/examples/configs/pdt_configs.py`.
@@ -38,7 +38,7 @@ The default parameters can be found in `OSRL/examples/configs/pdt_configs.py`.
 To evaluate a trained PDT agent, simply run:
 ``` bash
 cd OSRL/examples/eval
-python eval_pdt.py --path <path_to_model> --eval_episodes <number_of_episodes> --costs <list_of_target_cost_thresholds> --returns <list_of_target_returns>
+python3 eval_pdt.py --path <path_to_model> --eval_episodes <number_of_episodes> --costs <list_of_target_cost_thresholds> --returns <list_of_lists_of_target_returns>
 ```
 It will load config file from `path_to_model/config.yaml` and model file from `path_to_model/checkpoints/model.pt`, run the number of episodes for each target return and cost threshold, and print the average normalized reward and cost.
 
