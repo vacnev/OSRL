@@ -29,8 +29,8 @@ class PDTTrainConfig:
     residual_dropout: float = 0.1
     embedding_dropout: float = 0.1
     time_emb: bool = True
-    num_qr: int = 4
-    num_qc: int = 4
+    num_qr: int = 2
+    num_qc: int = 2
     c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
     use_verification: bool = True
     infer_q: bool = True
@@ -50,8 +50,8 @@ class PDTTrainConfig:
     cost_scale: float = 1
     num_workers: int = 6
     tau: float = 0.005
-    gamma: float = 0.999
-    cost_gamma: float = 0.999
+    gamma: float = 0.99
+    cost_gamma: float = 0.99
     n_step: bool = False
     # evaluation params
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
@@ -87,6 +87,7 @@ class PDTTrainConfig:
     cost_reverse: bool = False
     eta: float = 5.0
     max_lag: float = 5.0
+    min_lag: float = -20.0
     # pf only mode param
     pf_only: bool = False
     rmin: float = 300

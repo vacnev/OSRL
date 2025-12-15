@@ -79,7 +79,7 @@ class PDT(nn.Module):
         tau: float = 0.005,
         gamma: float = 0.99,
         cost_gamma: float = 0.99,
-        use_verification: bool = False,
+        use_verification: bool = True,
         infer_q: bool = True,
     ):
         super().__init__()
@@ -99,7 +99,7 @@ class PDT(nn.Module):
         self.stochastic = stochastic
         self.tau = tau
         self.gamma = gamma
-        self.cost_gamma = cost_gamma # GAMMA FOR COST CRITIC, change back
+        self.cost_gamma = cost_gamma
         self.use_verification = use_verification
         self.infer_q = infer_q
 
@@ -177,12 +177,43 @@ class PDT(nn.Module):
                                            activation=nn.Mish,
                                            )
         
-        self.actor_lag = WeightsNet(1, 128, 1)
+        self.actor_lag = WeightsNet(1, 128, 1, activation=nn.Mish)
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
         self.cost_critic_target = deepcopy(self.cost_critic)
         self.cost_critic_target.eval()
+
+    def actor_parameters(self, include_aux=True):
+        params = []
+
+        # embeddings
+        params += list(self.state_emb.parameters())
+        params += list(self.action_emb.parameters())
+        if self.use_cost:
+            params += list(self.cost_emb.parameters())
+        if self.use_rew:
+            params += list(self.return_emb.parameters())
+        if self.time_emb:
+            params += list(self.timestep_emb.parameters())
+
+        # transformer
+        params += list(self.blocks.parameters())
+
+        # norms
+        params += list(self.emb_norm.parameters())
+        params += list(self.out_norm.parameters())
+
+        # heads
+        params += list(self.action_head.parameters())
+        params += list(self.state_pred_head.parameters())
+        params += list(self.cost_pred_head.parameters())
+
+        # temperature
+        if self.stochastic:
+            params.append(self.log_temperature)
+
+        return params
 
     def temperature(self):
         if self.stochastic:
@@ -426,6 +457,7 @@ class PDTTrainer:
             loss_state_weight: float = 0.0,
             eta: float = 1.0,
             max_lag: float = 5.0,
+            min_lag: float = -20.0,
             cost_reverse: bool = False,
             no_entropy: bool = False,
             n_step: bool = True,
@@ -445,9 +477,10 @@ class PDTTrainer:
         self.no_entropy = no_entropy
         self.n_step = n_step
         self.max_lag = max_lag
+        self.min_lag = min_lag
 
         self.actor_optim = torch.optim.AdamW(
-            self.model.parameters(),
+            self.model.actor_parameters(),
             lr=actor_lr,
             weight_decay=weight_decay,
             betas=betas,
@@ -555,7 +588,7 @@ class PDTTrainer:
             target_qr = target_qr[:, 1:]
             target_qc = target_qc[:, 1:]
             target_qr = rewards[:, :-1] + self.model.gamma * target_qr  # [batch_size, seq_len - 1]
-            target_qc = rewards[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
+            target_qc = costs[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
             target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
 
@@ -638,8 +671,11 @@ class PDTTrainer:
         # log_lambda = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
         # log_lambda.data.clamp_(min=-20, max=self.max_lag)
         # lambd = log_lambda.exp()
-        lambd = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
-        lambd = torch.exp(torch.tensor(self.max_lag)) * torch.sigmoid(lambd)
+        log_lambd_raw = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
+        log_lambd = F.tanh(log_lambd_raw)
+        log_lambd = 0.5 * (log_lambd + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
+        lambd = torch.exp(log_lambd)
+        # lambd = torch.exp(torch.tensor(self.max_lag)) * torch.sigmoid(lambd)
         lambd_detach = lambd.detach()
 
         qc_loss = lambd_detach * (qc_preds - costs_return)
@@ -652,16 +688,18 @@ class PDTTrainer:
         self.actor_optim.zero_grad()
         loss.backward()
         if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad)
+            torch.nn.utils.clip_grad_norm_(self.model.actor_parameters(), self.clip_grad)
         self.actor_optim.step()
 
         # update Lagrangian multiplier
         loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
         loss_lag = loss_lag.mean()
-        for param in self.model.actor_lag.parameters():
-            loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
+        # for param in self.model.actor_lag.parameters():
+        #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
+        if self.clip_grad is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad_critic)
         self.lagrangian_optim.step()
 
         if self.stochastic:
