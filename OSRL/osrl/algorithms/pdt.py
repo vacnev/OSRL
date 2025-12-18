@@ -175,9 +175,10 @@ class PDT(nn.Module):
                                            cost_conditioned=True,
                                            num_q=num_qc,
                                            activation=nn.Mish,
+                                           take_min=False,
                                            )
         
-        self.actor_lag = WeightsNet(1, 128, 1, activation=nn.Mish)
+        self.actor_lag = WeightsNet(1, 64, 1, activation=nn.Mish)
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
@@ -522,6 +523,8 @@ class PDTTrainer:
             self.model.actor_lag.parameters(), lr=actor_lr
         )
 
+        self.step = 0
+
     def train_one_step(self, states, actions, returns, costs_return, time_steps, mask,
                        costs):
         # True value indicates that the corresponding key value will be ignored
@@ -601,13 +604,24 @@ class PDTTrainer:
         # mask_r = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
         # mask_c = mask_.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
 
-        # critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0])
-        # cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0])
+        # critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0], reduction="none")
+        # cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0], reduction="none")
+
+        # batch_size_critic = 256
+        # sample_indices = torch.randperm(critic_loss.shape[0])[:batch_size_critic]
+        # critic_loss = critic_loss[sample_indices].mean() * current_qrs.shape[0]
+        # cost_critic_loss = cost_critic_loss[sample_indices].mean() * current_qcs.shape[0]
 
         critic_loss, cost_critic_loss = 0.0, 0.0
+        batch_size_critic = 2048
+        sample_indices = torch.randperm(target_qr[mask_ > 0].shape[0])[:batch_size_critic]
         for i in range(current_qrs.shape[0]):
-            critic_loss += F.mse_loss(current_qrs[i][mask_ > 0], target_qr[mask_ > 0])
-            cost_critic_loss += F.mse_loss(current_qcs[i][mask_ > 0], target_qc[mask_ > 0])
+            rew_loss = F.mse_loss(current_qrs[i][mask_ > 0], target_qr[mask_ > 0], reduction="mean")
+            # rew_loss = rew_loss[sample_indices].sum() / batch_size_critic
+            critic_loss += rew_loss
+            cost_loss = F.mse_loss(current_qcs[i][mask_ > 0], target_qc[mask_ > 0], reduction="mean")
+            # cost_loss = cost_loss[sample_indices].sum() / batch_size_critic
+            cost_critic_loss += cost_loss
 
         self.critic_optim.zero_grad()
         critic_loss.backward()
@@ -675,8 +689,14 @@ class PDTTrainer:
         log_lambd = F.tanh(log_lambd_raw)
         log_lambd = 0.5 * (log_lambd + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
         lambd = torch.exp(log_lambd)
-        # lambd = torch.exp(torch.tensor(self.max_lag)) * torch.sigmoid(lambd)
         lambd_detach = lambd.detach()
+
+        # print 10 first
+        if self.step % 1000 == 0:
+            print("costs_return: ", costs_return[:10, 0].detach().cpu().numpy())
+            print("qr_preds: ", qr_preds[:10, 0].detach().cpu().numpy())
+            print("qc_preds: ", qc_preds[:10, 0].detach().cpu().numpy())
+            print("lambd: ", lambd[:10, 0].detach().cpu().numpy())
 
         qc_loss = lambd_detach * (qc_preds - costs_return)
         q_loss = -qr_preds + qc_loss
@@ -693,6 +713,7 @@ class PDTTrainer:
 
         # update Lagrangian multiplier
         loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
+        # loss_lag = loss_lag[sample_indices].mean()
         loss_lag = loss_lag.mean()
         # for param in self.model.actor_lag.parameters():
         #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
@@ -701,6 +722,18 @@ class PDTTrainer:
         if self.clip_grad is not None:
             torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad_critic)
         self.lagrangian_optim.step()
+
+        if self.step % 2000 == 0:
+            with torch.no_grad():
+                # print for, 10, 20, .., 100
+                thds = torch.arange(0.0, 11.0, 1.0, device=self.device)
+                lambda_test = self.model.actor_lag(thds.unsqueeze(-1)).squeeze(-1)  # [1]
+                lambda_test = F.tanh(lambda_test)
+                lambda_test = 0.5 * (lambda_test + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
+                
+                for i in range(len(thds)):
+                    print("Lambda at cost return %.2f: %.4f" % (thds[i].item(), lambda_test[i].item()))
+        self.step += 1
 
         if self.stochastic:
             self.log_temperature_optimizer.zero_grad()

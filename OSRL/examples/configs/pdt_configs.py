@@ -31,7 +31,7 @@ class PDTTrainConfig:
     time_emb: bool = True
     num_qr: int = 2
     num_qc: int = 2
-    c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
+    c_hidden_sizes: Tuple[int, ...] = (256, 256)
     use_verification: bool = True
     infer_q: bool = True
     # training params
