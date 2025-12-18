@@ -607,31 +607,22 @@ class PDTTrainer:
         # critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0], reduction="none")
         # cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0], reduction="none")
 
-        # batch_size_critic = 256
-        # sample_indices = torch.randperm(critic_loss.shape[0])[:batch_size_critic]
-        # critic_loss = critic_loss[sample_indices].mean() * current_qrs.shape[0]
-        # cost_critic_loss = cost_critic_loss[sample_indices].mean() * current_qcs.shape[0]
-
         critic_loss, cost_critic_loss = 0.0, 0.0
-        batch_size_critic = 2048
-        sample_indices = torch.randperm(target_qr[mask_ > 0].shape[0])[:batch_size_critic]
         for i in range(current_qrs.shape[0]):
             rew_loss = F.mse_loss(current_qrs[i][mask_ > 0], target_qr[mask_ > 0], reduction="mean")
-            # rew_loss = rew_loss[sample_indices].sum() / batch_size_critic
             critic_loss += rew_loss
             cost_loss = F.mse_loss(current_qcs[i][mask_ > 0], target_qc[mask_ > 0], reduction="mean")
-            # cost_loss = cost_loss[sample_indices].sum() / batch_size_critic
             cost_critic_loss += cost_loss
 
         self.critic_optim.zero_grad()
         critic_loss.backward()
-        if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
+        # if self.clip_grad is not None:
+        #     torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
         self.critic_optim.step()
         self.cost_critic_optim.zero_grad()
         cost_critic_loss.backward()
-        if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
+        # if self.clip_grad is not None:
+        #     torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
         self.cost_critic_optim.step()
 
         self.model.sync_target_networks()
@@ -682,9 +673,6 @@ class PDTTrainer:
 
         qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
 
-        # log_lambda = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
-        # log_lambda.data.clamp_(min=-20, max=self.max_lag)
-        # lambd = log_lambda.exp()
         log_lambd_raw = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
         log_lambd = F.tanh(log_lambd_raw)
         log_lambd = 0.5 * (log_lambd + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
@@ -713,20 +701,20 @@ class PDTTrainer:
 
         # update Lagrangian multiplier
         loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
-        # loss_lag = loss_lag[sample_indices].mean()
         loss_lag = loss_lag.mean()
         # for param in self.model.actor_lag.parameters():
         #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
-        if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad_critic)
+        # if self.clip_grad is not None:
+        #     torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad_critic)
         self.lagrangian_optim.step()
 
         if self.step % 2000 == 0:
             with torch.no_grad():
                 # print for, 10, 20, .., 100
                 thds = torch.arange(0.0, 11.0, 1.0, device=self.device)
+                thds = thds * self.cost_scale
                 lambda_test = self.model.actor_lag(thds.unsqueeze(-1)).squeeze(-1)  # [1]
                 lambda_test = F.tanh(lambda_test)
                 lambda_test = 0.5 * (lambda_test + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
