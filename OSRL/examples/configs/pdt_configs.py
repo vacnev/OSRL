@@ -38,7 +38,7 @@ class PDTTrainConfig:
     task: str = "OfflineCarCircle-v0"
     dataset: str = None
     actor_lr: float = 1e-4
-    critic_lr: float = 1e-3
+    critic_lr: float = 1e-4
     betas: Tuple[float, float] = (0.9, 0.999)
     weight_decay: float = 1e-4
     clip_grad: Optional[float] = 0.25

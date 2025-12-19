@@ -551,79 +551,42 @@ class PDTTrainer:
 
         # CRITIC LOSS
         sc = torch.cat([states, costs_return.unsqueeze(-1)], dim=-1)
-        current_qrs = self.model.critic(sc, actions)
-        current_qrs = torch.stack(current_qrs, dim=0)  # [num_qr, batch_size, seq_len]
-        current_qcs = self.model.cost_critic(sc, actions)
-        current_qcs = torch.stack(current_qcs, dim=0)  # [num_qc, batch_size, seq_len]
 
         # compute discounted n-step returns
         rewards = returns[:, :-1] - returns[:, 1:]  # r_t = R_t - R_{t+1}
         rewards = torch.cat([rewards, torch.zeros(batch_size, 1, device=self.device)], dim=1) # [batch_size, seq_len]
-        if self.n_step:
-            last_sc = sc[batch_idxs, last_idxs]  # [batch_size, state_dim + 1]
-            last_action = action_preds_mean[batch_idxs, last_idxs]  # [batch_size, action_dim]
-            target_qr, target_qc = self.model.pred_targets(last_sc, last_action)  # [batch_size]
-
-            # zero the last cost for n-step as it is already included in the target Q
-            costs_ = costs.clone()
-            costs_[batch_idxs, last_idxs] = 0.
-
-            # vectorized discounting
-            arange = torch.arange(seq_len, device=self.device)  # [seq_len]
-            exp_mat = arange * mask  # [batch_size, seq_len]
-
-            discount = self.model.gamma ** exp_mat.float()  # [batch_size, seq_len]
-            discount_cost = self.model.cost_gamma ** exp_mat.float()  # [batch_size, seq_len]
-
-            n_rews = torch.cumsum((rewards * discount).flip(dims=[1]), dim=1).flip(dims=[1]) / discount # [batch_size, seq_len]
-            n_costs = torch.cumsum((costs_ * discount_cost).flip(dims=[1]), dim=1).flip(dims=[1]) / discount_cost  # [batch_size, seq_len]
-
-            # add target Q for bootstrap
-            valid_len = mask.sum(dim=1, keepdim=True).float()  # [batch_size, 1]
-            exp_mat = torch.maximum(valid_len - 1 - arange, torch.zeros(1, device=self.device))  # [batch_size, seq_len]
-            discount = self.model.gamma ** exp_mat  # [batch_size, seq_len]
-            discount_cost = self.model.cost_gamma ** exp_mat  # [batch_size, seq_len]
-
-            target_qr = (n_rews + target_qr.unsqueeze(-1) * discount).detach()  # [batch_size, seq_len]
-            target_qc = (n_costs + target_qc.unsqueeze(-1) * discount_cost).detach()  # [batch_size, seq_len]
-        else:
-            target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
-            target_qr = target_qr[:, 1:]
-            target_qc = target_qc[:, 1:]
-            target_qr = rewards[:, :-1] + self.model.gamma * target_qr  # [batch_size, seq_len - 1]
-            target_qc = costs[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
-            target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
-            target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
-
-        # target_qr = target_qr.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
-        # target_qc = target_qc.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
 
         # mask out last valid index in each sequence
         mask_ = mask.clone()
         mask_[batch_idxs, last_idxs] = 0
-        # mask_r = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
-        # mask_c = mask_.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
-
-        # critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0], reduction="none")
-        # cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0], reduction="none")
 
         critic_loss, cost_critic_loss = 0.0, 0.0
-        for i in range(current_qrs.shape[0]):
-            rew_loss = F.mse_loss(current_qrs[i][mask_ > 0], target_qr[mask_ > 0], reduction="mean")
-            critic_loss += rew_loss
-            cost_loss = F.mse_loss(current_qcs[i][mask_ > 0], target_qc[mask_ > 0], reduction="mean")
-            cost_critic_loss += cost_loss
+        for i in range(seq_len - 2, -1, -1):
+            # compute current
+            current_qrs = self.model.critic(sc[:, i], actions[:, i])
+            current_qrs = torch.stack(current_qrs, dim=0)  # [num_qr, batch_size, 1]
+            current_qcs = self.model.cost_critic(sc[:, i], actions[:, i])
+            current_qcs = torch.stack(current_qcs, dim=0)  # [num_qc, batch_size, 1]
 
-        self.critic_optim.zero_grad()
-        critic_loss.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
-        self.critic_optim.step()
-        self.cost_critic_optim.zero_grad()
-        cost_critic_loss.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
-        self.cost_critic_optim.step()
+            # compute targets in sequence
+            target_qr, target_qc = self.model.pred_targets(sc[:, i+1], action_preds_mean[:, i+1])  # [batch_size, 1], [batch_size, 1]
+            target_qr = rewards[:, i] + self.model.gamma * target_qr  # [batch_size, 1]
+            target_qc = costs[:, i] + self.model.cost_gamma * target_qc  # [batch_size, 1]
+
+            mask_i = mask_[:, i]
+            batch_critic_loss, batch_cost_critic_loss = 0.0, 0.0
+            for j in range(current_qrs.shape[0]):
+                batch_critic_loss += F.mse_loss(current_qrs[j][mask_i > 0], target_qr[mask_i > 0], reduction="mean")
+                batch_cost_critic_loss += F.mse_loss(current_qcs[j][mask_i > 0], target_qc[mask_i > 0], reduction="mean")
+            critic_loss += batch_critic_loss
+            cost_critic_loss += batch_cost_critic_loss
+
+            self.critic_optim.zero_grad()
+            batch_critic_loss.backward()
+            self.critic_optim.step()
+            self.cost_critic_optim.zero_grad()
+            batch_cost_critic_loss.backward()
+            self.cost_critic_optim.step()
 
         self.model.sync_target_networks()
 
@@ -700,15 +663,29 @@ class PDTTrainer:
         self.actor_optim.step()
 
         # update Lagrangian multiplier
-        loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
-        loss_lag = loss_lag.mean()
+        # loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
+        # loss_lag = loss_lag.mean()
         # for param in self.model.actor_lag.parameters():
         #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
-        self.lagrangian_optim.zero_grad()
-        loss_lag.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad_critic)
-        self.lagrangian_optim.step()
+        # self.lagrangian_optim.zero_grad()
+        # loss_lag.backward()
+        # self.lagrangian_optim.step()
+
+        # update lambda in sequence
+        loss_lag = 0.0
+        for i in range(seq_len - 1, -1, -1):
+            log_lambd_raw = self.model.actor_lag(costs_return[:, i].unsqueeze(-1)).squeeze(-1)  # [batch_size, 1]
+            log_lambd = F.tanh(log_lambd_raw)
+            log_lambd = 0.5 * (log_lambd + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
+            lambd = torch.exp(log_lambd)
+
+            batch_loss_lag = (-(lambd * (qc_preds[:, i].detach() - costs_return[:, i])))[mask[:, i] > 0]
+            batch_loss_lag = batch_loss_lag.mean()
+            loss_lag += batch_loss_lag
+
+            self.lagrangian_optim.zero_grad()
+            batch_loss_lag.backward()
+            self.lagrangian_optim.step()
 
         if self.step % 2000 == 0:
             with torch.no_grad():
