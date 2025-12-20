@@ -99,7 +99,7 @@ class PDT(nn.Module):
         self.stochastic = stochastic
         self.tau = tau
         self.gamma = gamma
-        self.cost_gamma = cost_gamma # GAMMA FOR COST CRITIC, change back
+        self.cost_gamma = cost_gamma
         self.use_verification = use_verification
         self.infer_q = infer_q
 
@@ -175,6 +175,7 @@ class PDT(nn.Module):
                                            cost_conditioned=True,
                                            num_q=num_qc,
                                            activation=nn.Mish,
+                                           take_min=True,
                                            )
         
         
@@ -415,7 +416,7 @@ class PDTTrainer:
         cost_scale (float): The scaling factor for the constraint cost.
         loss_cost_weight (float): The weight for the cost loss.
         loss_state_weight (float): The weight for the state loss.
-        qr_weight (float): Weight for the reward critic loss (improvement).
+        eta (float): Weight for the reward critic loss (improvement).
         qc_weight (float): Weight for the cost critic loss (verification).
         cost_reverse (bool): Whether to reverse the cost.
         no_entropy (bool): Whether to use entropy.
@@ -442,8 +443,7 @@ class PDTTrainer:
             cost_scale: float = 1.0,
             loss_cost_weight: float = 0.0,
             loss_state_weight: float = 0.0,
-            qr_weight: float = 1.0,
-            qc_weight: float = 1.0,
+            eta: float = 1.0,
             cost_reverse: bool = False,
             no_entropy: bool = False,
             n_step: bool = True,
@@ -458,8 +458,7 @@ class PDTTrainer:
         self.device = device
         self.cost_weight = loss_cost_weight
         self.state_weight = loss_state_weight
-        self.qr_weight = qr_weight
-        self.qc_weight = qc_weight
+        self.eta = eta
         self.cost_reverse = cost_reverse
         self.no_entropy = no_entropy
         self.n_step = n_step
@@ -523,7 +522,7 @@ class PDTTrainer:
         batch_idxs = torch.arange(len(last_idxs), device=self.device)
 
         if self.stochastic:
-            action_preds_mean = action_preds.mean
+            action_preds_mean = action_preds.sample()
         else:
             action_preds_mean = action_preds
 
@@ -570,7 +569,7 @@ class PDTTrainer:
             target_qc = target_qc[:, 1:]
             safe_mask = (target_qc <= costs_return[:, 1:]).to(torch.float)
             target_qr = rewards[:, :-1] + self.model.gamma * target_qr * safe_mask  # [batch_size, seq_len - 1]
-            target_qc = rewards[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
+            target_qc = costs[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
             target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
 
@@ -601,9 +600,6 @@ class PDTTrainer:
 
         # ACTOR LOSS
 
-        qr_actions, qc_actions = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
-        bc_safe_mask = (qc_actions <= costs_return).to(torch.double) # shielding
-
         # cost_preds: [batch_size * seq_len, 2], costs: [batch_size * seq_len]
         cost_preds = cost_preds.reshape(-1, 2)
         costs = costs.flatten().long().detach()
@@ -618,7 +614,7 @@ class PDTTrainer:
         acc = correct / total_num
 
         if self.stochastic:
-            log_likelihood = action_preds.log_prob(actions)[bc_safe_mask * mask > 0].mean()
+            log_likelihood = action_preds.log_prob(actions)[mask > 0].mean()
             entropy = action_preds.entropy()[mask > 0].mean()
             entropy_reg = self.model.temperature().detach()
             entropy_reg_item = entropy_reg.item()
@@ -653,7 +649,7 @@ class PDTTrainer:
 
         qr_preds = qr_preds[safe_mask * mask > 0]
         qr_loss = -qr_preds.mean() / (qr_preds.abs().mean().detach() + 1e-8)
-        loss += self.qr_weight * qr_loss
+        loss += self.eta * qr_loss
 
         # verification
         # qc_loss = (qc_preds - costs_return)[mask > 0] # only penalize unsafe actions

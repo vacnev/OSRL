@@ -175,10 +175,10 @@ class PDT(nn.Module):
                                            cost_conditioned=True,
                                            num_q=num_qc,
                                            activation=nn.Mish,
-                                           take_min=False,
+                                           take_min=True,
                                            )
         
-        self.actor_lag = WeightsNet(1, 64, 1, activation=nn.Mish)
+        self.actor_lag = WeightsNet(self.state_dim + 1, 256, 1, activation=nn.Mish)
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
@@ -545,12 +545,12 @@ class PDTTrainer:
         batch_idxs = torch.arange(len(last_idxs), device=self.device)
 
         if self.stochastic:
-            action_preds_mean = action_preds.mean
+            action_preds_mean = action_preds.sample()
         else:
             action_preds_mean = action_preds
 
         # CRITIC LOSS
-        sc = torch.cat([states, costs_return.unsqueeze(-1)], dim=-1)
+        sc = torch.cat([states, costs_return.unsqueeze(-1)], dim=-1) # [batch_size, seq_len, state_dim + 1]
         current_qrs = self.model.critic(sc, actions)
         current_qrs = torch.stack(current_qrs, dim=0)  # [num_qr, batch_size, seq_len]
         current_qcs = self.model.cost_critic(sc, actions)
@@ -616,13 +616,13 @@ class PDTTrainer:
 
         self.critic_optim.zero_grad()
         critic_loss.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
+        if self.clip_grad is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
         self.critic_optim.step()
         self.cost_critic_optim.zero_grad()
         cost_critic_loss.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
+        if self.clip_grad is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
         self.cost_critic_optim.step()
 
         self.model.sync_target_networks()
@@ -673,7 +673,8 @@ class PDTTrainer:
 
         qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
 
-        log_lambd_raw = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
+        # log_lambd_raw = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
+        log_lambd_raw = self.model.actor_lag(sc).squeeze(-1)  # [batch_size, seq_len]
         log_lambd = F.tanh(log_lambd_raw)
         log_lambd = 0.5 * (log_lambd + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
         lambd = torch.exp(log_lambd)
@@ -706,21 +707,21 @@ class PDTTrainer:
         #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad_critic)
+        if self.clip_grad is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad)
         self.lagrangian_optim.step()
 
-        if self.step % 2000 == 0:
-            with torch.no_grad():
-                # print for, 10, 20, .., 100
-                thds = torch.arange(0.0, 11.0, 1.0, device=self.device)
-                thds = thds * self.cost_scale
-                lambda_test = self.model.actor_lag(thds.unsqueeze(-1)).squeeze(-1)  # [1]
-                lambda_test = F.tanh(lambda_test)
-                lambda_test = 0.5 * (lambda_test + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
+        # if self.step % 2000 == 0:
+        #     with torch.no_grad():
+        #         # print for, 10, 20, .., 100
+        #         thds = torch.arange(0.0, 11.0, 1.0, device=self.device)
+        #         thds = thds * self.cost_scale
+        #         lambda_test = self.model.actor_lag(thds.unsqueeze(-1)).squeeze(-1)  # [1]
+        #         lambda_test = F.tanh(lambda_test)
+        #         lambda_test = 0.5 * (lambda_test + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
                 
-                for i in range(len(thds)):
-                    print("Lambda at cost return %.2f: %.4f" % (thds[i].item(), lambda_test[i].item()))
+        #         for i in range(len(thds)):
+        #             print("Lambda at cost return %.2f: %.4f" % (thds[i].item(), lambda_test[i].item()))
         self.step += 1
 
         if self.stochastic:

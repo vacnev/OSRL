@@ -29,8 +29,8 @@ class PDTTrainConfig:
     residual_dropout: float = 0.1
     embedding_dropout: float = 0.1
     time_emb: bool = True
-    num_qr: int = 2
-    num_qc: int = 2
+    num_qr: int = 4
+    num_qc: int = 4
     c_hidden_sizes: Tuple[int, ...] = (256, 256)
     use_verification: bool = True
     infer_q: bool = True
