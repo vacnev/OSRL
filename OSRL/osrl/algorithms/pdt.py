@@ -175,7 +175,7 @@ class PDT(nn.Module):
                                            cost_conditioned=True,
                                            num_q=num_qc,
                                            activation=nn.Mish,
-                                           take_min=True,
+                                           take_min=False,
                                            )
         
         self.actor_lag = WeightsNet(self.state_dim + 1, 256, 1, activation=nn.Mish)
@@ -545,7 +545,7 @@ class PDTTrainer:
         batch_idxs = torch.arange(len(last_idxs), device=self.device)
 
         if self.stochastic:
-            action_preds_mean = action_preds.sample()
+            action_preds_mean = action_preds.rsample()
         else:
             action_preds_mean = action_preds
 
@@ -616,13 +616,13 @@ class PDTTrainer:
 
         self.critic_optim.zero_grad()
         critic_loss.backward()
-        if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
+        # if self.clip_grad is not None:
+        #     torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
         self.critic_optim.step()
         self.cost_critic_optim.zero_grad()
         cost_critic_loss.backward()
-        if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
+        # if self.clip_grad is not None:
+        #     torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
         self.cost_critic_optim.step()
 
         self.model.sync_target_networks()
@@ -707,8 +707,8 @@ class PDTTrainer:
         #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
-        if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad)
+        # if self.clip_grad is not None:
+        #     torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad)
         self.lagrangian_optim.step()
 
         # if self.step % 2000 == 0:

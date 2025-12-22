@@ -522,7 +522,7 @@ class PDTTrainer:
         batch_idxs = torch.arange(len(last_idxs), device=self.device)
 
         if self.stochastic:
-            action_preds_mean = action_preds.sample()
+            action_preds_mean = action_preds.rsample()
         else:
             action_preds_mean = action_preds
 
