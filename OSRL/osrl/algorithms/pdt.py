@@ -166,7 +166,7 @@ class PDT(nn.Module):
                                       hidden_sizes=c_hidden_sizes,
                                       cost_conditioned=True,
                                       num_q=num_qr,
-                                      activation=nn.Mish,
+                                      activation=nn.ReLU,
                                       )
         
         self.cost_critic = EnsembleQCritic(self.state_dim,
@@ -174,11 +174,11 @@ class PDT(nn.Module):
                                            hidden_sizes=c_hidden_sizes,
                                            cost_conditioned=True,
                                            num_q=num_qc,
-                                           activation=nn.Mish,
-                                           take_min=False,
+                                           activation=nn.ReLU,
+                                           take_min=True,
                                            )
         
-        self.actor_lag = WeightsNet(self.state_dim + 1, 256, 1, activation=nn.Mish)
+        self.actor_lag = WeightsNet(self.state_dim + 1, 256, 1, activation=nn.ReLU)
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
