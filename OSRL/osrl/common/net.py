@@ -243,7 +243,7 @@ class EnsembleQCritic(nn.Module):
     '''
 
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation=nn.ReLU, 
-                 cost_conditioned=False, num_q=2, take_min=True):
+                 cost_conditioned=False, num_q=2, mode="min"):
         super().__init__()
         assert num_q >= 1, "num_q param should be greater than 1"
         if cost_conditioned:
@@ -256,7 +256,7 @@ class EnsembleQCritic(nn.Module):
                 mlp([obs_dim + act_dim] + list(hidden_sizes) + [1], activation)
                 for i in range(num_q)
             ])
-        self.take_min = take_min
+        self.mode = mode
 
     def forward(self, obs, act=None):
         # Squeeze is critical to ensure value has the right shape.
@@ -269,11 +269,12 @@ class EnsembleQCritic(nn.Module):
     def predict(self, obs, act):
         q_list = self.forward(obs, act)
         qs = torch.stack(q_list, dim=0)  # [num_q, batch_size]
-        if self.take_min:
-            return torch.min(qs, dim=0).values, q_list
-        else:
+        if self.mode == "mean":
+            return torch.mean(qs, dim=0), q_list
+        elif self.mode == "max":
             return torch.max(qs, dim=0).values, q_list
-        # return torch.mean(qs, dim=0), q_list
+        else:
+            return torch.min(qs, dim=0).values, q_list
 
 
     def loss(self, target, q_list=None):

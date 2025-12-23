@@ -175,7 +175,7 @@ class PDT(nn.Module):
                                            cost_conditioned=True,
                                            num_q=num_qc,
                                            activation=nn.ReLU,
-                                           take_min=True,
+                                           mode="mean",
                                            )
         
         self.actor_lag = WeightsNet(self.state_dim + 1, 256, 1, activation=nn.ReLU)
@@ -480,6 +480,10 @@ class PDTTrainer:
         self.max_lag = max_lag
         self.min_lag = min_lag
 
+        lr_scaler = 5.9
+        critic_lr = critic_lr * lr_scaler
+        lambda_lr = actor_lr * lr_scaler
+
         self.actor_optim = torch.optim.AdamW(
             self.model.actor_parameters(),
             lr=actor_lr,
@@ -520,7 +524,7 @@ class PDTTrainer:
         )
 
         self.lagrangian_optim = torch.optim.Adam(
-            self.model.actor_lag.parameters(), lr=actor_lr
+            self.model.actor_lag.parameters(), lr=lambda_lr
         )
 
         self.step = 0
