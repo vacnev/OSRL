@@ -247,7 +247,7 @@ class PDTCarButton1Config(PDTTrainConfig):
     eta: float = 1.0
     # training params
     task: str = "OfflineCarButton1Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 20), ((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 45.0
@@ -264,7 +264,7 @@ class PDTCarButton2Config(PDTTrainConfig):
     eta: float = 8.0
     # training params
     task: str = "OfflineCarButton2Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 20), ((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 50.0
@@ -313,7 +313,7 @@ class PDTCarGoal1Config(PDTTrainConfig):
     eta: float = 1.0
     # training params
     task: str = "OfflineCarGoal1Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((40.0, 35.0, 25.0), 40), ((40.0, 35.0, 25.0), 80), ((40.0, 35.0, 25.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((40.0, 35.0, 25.0), 20), ((40.0, 35.0, 25.0), 40), ((40.0, 35.0, 25.0), 80), ((40.0, 35.0, 25.0), 120))
     # augmentation param
     deg: int = 1
     max_reward: float = 50.0
@@ -330,7 +330,7 @@ class PDTCarGoal2Config(PDTTrainConfig):
     eta: float = 1.0
     # training params
     task: str = "OfflineCarGoal2Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((30.0, 25.0, 20.0), 40), ((30.0, 25.0, 20.0), 80), ((30.0, 25.0, 20.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((30.0, 25.0, 20.0), 20), ((30.0, 25.0, 20.0), 40), ((30.0, 25.0, 20.0), 80), ((30.0, 25.0, 20.0), 120))
     # augmentation param
     deg: int = 1
     max_reward: float = 35.0
@@ -347,7 +347,7 @@ class PDTCarPush1Config(PDTTrainConfig):
     eta: float = 1.0
     # training params
     task: str = "OfflineCarPush1Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((15.0, 12.0, 10.0), 40), ((15.0, 12.0, 10.0), 80), ((15.0, 12.0, 10.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((15.0, 12.0, 10.0), 20), ((15.0, 12.0, 10.0), 40), ((15.0, 12.0, 10.0), 80), ((15.0, 12.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 20.0
@@ -364,7 +364,7 @@ class PDTCarPush2Config(PDTTrainConfig):
     eta: float = 8.0
     # training params
     task: str = "OfflineCarPush2Gymnasium-v0"
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((12.0, 10.0, 8.0), 40), ((12.0, 10.0, 8.0), 80), ((12.0, 10.0, 8.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((12.0, 10.0, 8.0), 20), ((12.0, 10.0, 8.0), 40), ((12.0, 10.0, 8.0), 80), ((12.0, 10.0, 8.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 15.0
