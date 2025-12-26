@@ -10,7 +10,7 @@ from torch.distributions.beta import Beta
 from torch.nn import functional as F  # noqa
 from tqdm.auto import trange  # noqa
 
-from osrl.common.net import DiagGaussianActor, TransformerBlock, mlp, EnsembleQCritic, WeightsNet
+from osrl.common.net import DiagGaussianActor, TransformerBlock, mlp, EnsembleQCritic, WeightsNet, EnsembleQCriticLN
 
 
 class PDT(nn.Module):
@@ -161,7 +161,7 @@ class PDT(nn.Module):
 
         self.apply(self._init_weights)
 
-        self.critic = EnsembleQCritic(self.state_dim,
+        self.critic = EnsembleQCriticLN(self.state_dim,
                                       self.action_dim,
                                       hidden_sizes=c_hidden_sizes,
                                       cost_conditioned=True,
@@ -169,13 +169,13 @@ class PDT(nn.Module):
                                       activation=nn.ReLU,
                                       )
         
-        self.cost_critic = EnsembleQCritic(self.state_dim,
+        self.cost_critic = EnsembleQCriticLN(self.state_dim,
                                            self.action_dim,
                                            hidden_sizes=c_hidden_sizes,
                                            cost_conditioned=True,
                                            num_q=num_qc,
                                            activation=nn.ReLU,
-                                           mode="mean",
+                                           mode="max",
                                            )
         
         self.actor_lag = WeightsNet(self.state_dim + 1, 256, 1, activation=nn.ReLU)
@@ -480,7 +480,7 @@ class PDTTrainer:
         self.max_lag = max_lag
         self.min_lag = min_lag
 
-        lr_scaler = 5.9
+        lr_scaler = 5.9 # scale base learning rate for large batch sizes 
         critic_lr = critic_lr * lr_scaler
         lambda_lr = actor_lr * lr_scaler
 
@@ -554,7 +554,8 @@ class PDTTrainer:
             action_preds_mean = action_preds
 
         # CRITIC LOSS
-        sc = torch.cat([states, costs_return.unsqueeze(-1)], dim=-1) # [batch_size, seq_len, state_dim + 1]
+        log_costs_return = torch.log(costs_return + 1.0)
+        sc = torch.cat([states, log_costs_return.unsqueeze(-1)], dim=-1) # [batch_size, seq_len, state_dim + 1]
         current_qrs = self.model.critic(sc, actions)
         current_qrs = torch.stack(current_qrs, dim=0)  # [num_qr, batch_size, seq_len]
         current_qcs = self.model.cost_critic(sc, actions)
@@ -594,6 +595,7 @@ class PDTTrainer:
             target_qr, target_qc = self.model.pred_targets(sc, action_preds_mean)  # [batch_size, seq_len], [batch_size, seq_len]
             target_qr = target_qr[:, 1:]
             target_qc = target_qc[:, 1:]
+            # safe_mask = (target_qc <= costs_return[:, 1:]).to(torch.float)
             target_qr = rewards[:, :-1] + self.model.gamma * target_qr  # [batch_size, seq_len - 1]
             target_qc = costs[:, :-1] + self.model.cost_gamma * target_qc  # [batch_size, seq_len - 1]
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
