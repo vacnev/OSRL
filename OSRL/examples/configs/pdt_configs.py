@@ -55,7 +55,7 @@ class PDTTrainConfig:
     n_step: bool = False
     # evaluation params
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((450.0, 400.0, 350.0), 10), ((500.0, 450.0, 400.0), 20), ((550.0, 500.0, 450.0), 50))  # reward, cost
+                          ...] = (((450.0, 400.0, 350.0), 10), ((500.0, 450.0, 400.0), 20), ((550.0, 500.0, 450.0), 40))  # reward, cost
     cost_limit: int = 5
     eval_episodes: int = 10
     eval_every: int = 10_000
