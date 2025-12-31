@@ -425,7 +425,6 @@ class PDTTrainer:
         weight_decay (float): The weight decay for the optimizer.
         betas (Tuple[float, ...]): The betas for the optimizer.
         clip_grad (float): The clip gradient value.
-        clip_grad_critic (float): The clip gradient value for the critic.
         lr_warmup_steps (int): The number of warmup steps for the learning rate scheduler.
         reward_scale (float): The scaling factor for the reward signal.
         cost_scale (float): The scaling factor for the constraint cost.
@@ -435,6 +434,8 @@ class PDTTrainer:
         cost_reverse (bool): Whether to reverse the cost.
         no_entropy (bool): Whether to use entropy.
         n_step (bool): Whether to use n-step returns.
+        batch_size (int): Batch size value.
+        seq_len (int): input sequence length
         device (str): The device to use for training (e.g. "cpu" or "cuda").
 
     """
@@ -450,7 +451,6 @@ class PDTTrainer:
             weight_decay: float = 1e-4,
             betas: Tuple[float, ...] = (0.9, 0.999),
             clip_grad: float = 0.25,
-            clip_grad_critic: float = 2.0,
             lr_warmup_steps: int = 10000,
             reward_scale: float = 1.0,
             cost_scale: float = 1.0,
@@ -469,7 +469,6 @@ class PDTTrainer:
         self.logger = logger
         self.env = env
         self.clip_grad = clip_grad
-        self.clip_grad_critic = clip_grad_critic
         self.reward_scale = reward_scale
         self.cost_scale = cost_scale
         self.device = device
@@ -627,13 +626,9 @@ class PDTTrainer:
 
         self.critic_optim.zero_grad()
         critic_loss.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), self.clip_grad_critic)
         self.critic_optim.step()
         self.cost_critic_optim.zero_grad()
         cost_critic_loss.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.cost_critic.parameters(), self.clip_grad_critic)
         self.cost_critic_optim.step()
 
         self.model.sync_target_networks()
@@ -718,21 +713,8 @@ class PDTTrainer:
         #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
-        # if self.clip_grad is not None:
-        #     torch.nn.utils.clip_grad_norm_(self.model.actor_lag.parameters(), self.clip_grad)
         self.lagrangian_optim.step()
 
-        # if self.step % 2000 == 0:
-        #     with torch.no_grad():
-        #         # print for, 10, 20, .., 100
-        #         thds = torch.arange(0.0, 11.0, 1.0, device=self.device)
-        #         thds = thds * self.cost_scale
-        #         lambda_test = self.model.actor_lag(thds.unsqueeze(-1)).squeeze(-1)  # [1]
-        #         lambda_test = F.tanh(lambda_test)
-        #         lambda_test = 0.5 * (lambda_test + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
-                
-        #         for i in range(len(thds)):
-        #             print("Lambda at cost return %.2f: %.4f" % (thds[i].item(), lambda_test[i].item()))
         self.step += 1
 
         if self.stochastic:
