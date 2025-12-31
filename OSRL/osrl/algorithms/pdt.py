@@ -462,6 +462,8 @@ class PDTTrainer:
             cost_reverse: bool = False,
             no_entropy: bool = False,
             n_step: bool = True,
+            batch_size: int = 2048,
+            seq_len: int = 10,
             device="cpu") -> None:
         self.model = model
         self.logger = logger
@@ -480,9 +482,12 @@ class PDTTrainer:
         self.max_lag = max_lag
         self.min_lag = min_lag
 
-        lr_scaler = 5.9 # scale base learning rate for large batch sizes 
+        transitions_batch_size = batch_size * (seq_len - 1)
+        base_batch_size = 512
+        lr_scaler = transitions_batch_size / base_batch_size
+        lr_scaler = lr_scaler ** 0.5  # square root scaling
         critic_lr = critic_lr * lr_scaler
-        lambda_lr = actor_lr * lr_scaler
+        lambda_lr = lambda_lr * lr_scaler
 
         self.actor_optim = torch.optim.AdamW(
             self.model.actor_parameters(),

@@ -143,6 +143,8 @@ def train(args: PDTTrainConfig):
                          cost_reverse=args.cost_reverse,
                          no_entropy=args.no_entropy,
                          n_step=args.n_step,
+                         batch_size=args.batch_size,
+                         seq_len=args.seq_len,
                          device=args.device)
 
     ct = lambda x: 70 - x if args.linear else 1 / (x + 10)
