@@ -191,8 +191,7 @@ class PDT(nn.Module):
 
             for layer in last_layers:
                 torch.nn.init.uniform_(layer.weight, -3e-3, 3e-3)
-                torch.nn.init.uniform_(layer.bias, -3e-3, 3e-3)
-
+                torch.nn.init.zeros_(layer.bias)
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
