@@ -514,6 +514,7 @@ class PDTTrainer:
         lambda_lr = actor_lr * lr_scaler
 
         decay, no_decay = self.model.actor_parameters()
+        self.actor_parameters = decay + no_decay
         self.actor_optim = torch.optim.AdamW(
             [
                 {"params": decay, "weight_decay": weight_decay},
@@ -732,7 +733,7 @@ class PDTTrainer:
         self.actor_optim.zero_grad()
         loss.backward()
         if self.clip_grad is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.actor_parameters(), self.clip_grad)
+            torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.clip_grad)
         self.actor_optim.step()
 
         # update Lagrangian multiplier
