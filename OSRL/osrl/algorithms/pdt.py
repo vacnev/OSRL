@@ -185,36 +185,48 @@ class PDT(nn.Module):
         self.cost_critic_target = deepcopy(self.cost_critic)
         self.cost_critic_target.eval()
 
-    def actor_parameters(self, include_aux=True):
-        params = []
+    def actor_parameters(self):
+        decay = []
+        no_decay = []
+
+        def add_module(module):
+            for p in module.parameters():
+                # biases → no decay
+                if p.ndim == 1:
+                    no_decay.append(p)
+                else:
+                    decay.append(p)
 
         # embeddings
-        params += list(self.state_emb.parameters())
-        params += list(self.action_emb.parameters())
+        add_module(self.state_emb)
+        add_module(self.action_emb)
         if self.use_cost:
-            params += list(self.cost_emb.parameters())
+            add_module(self.cost_emb)
         if self.use_rew:
-            params += list(self.return_emb.parameters())
+            add_module(self.return_emb)
         if self.time_emb:
-            params += list(self.timestep_emb.parameters())
+            add_module(self.timestep_emb)
 
         # transformer
-        params += list(self.blocks.parameters())
+        add_module(self.blocks)
 
-        # norms
-        params += list(self.emb_norm.parameters())
-        params += list(self.out_norm.parameters())
+        # norms (explicitly no decay)
+        for p in self.emb_norm.parameters():
+            no_decay.append(p)
+
+        for p in self.out_norm.parameters():
+            no_decay.append(p)
 
         # heads
-        params += list(self.action_head.parameters())
-        params += list(self.state_pred_head.parameters())
-        params += list(self.cost_pred_head.parameters())
+        add_module(self.action_head)
+        add_module(self.state_pred_head)
+        add_module(self.cost_pred_head)
 
         # temperature
         if self.stochastic:
-            params.append(self.log_temperature)
+            no_decay.append(self.log_temperature)
 
-        return params
+        return decay, no_decay
 
     def temperature(self):
         if self.stochastic:
@@ -486,14 +498,18 @@ class PDTTrainer:
         lr_scaler = transitions_batch_size / base_batch_size
         lr_scaler = lr_scaler ** 0.5  # square root scaling
         critic_lr = critic_lr * lr_scaler
-        lambda_lr = lambda_lr * lr_scaler
+        lambda_lr = actor_lr * lr_scaler
 
+        decay, no_decay = self.model.actor_parameters()
         self.actor_optim = torch.optim.AdamW(
-            self.model.actor_parameters(),
+            [
+                {"params": decay, "weight_decay": weight_decay},
+                {"params": no_decay, "weight_decay": 0.0},
+            ],
             lr=actor_lr,
-            weight_decay=weight_decay,
             betas=betas,
         )
+
         self.actor_scheduler = torch.optim.lr_scheduler.LambdaLR(
             self.actor_optim,
             lambda steps: min((steps + 1) / lr_warmup_steps, 1),
