@@ -235,10 +235,6 @@ class PDT(nn.Module):
         add_module(self.state_pred_head)
         add_module(self.cost_pred_head)
 
-        # temperature
-        if self.stochastic:
-            no_decay.append(self.log_temperature)
-
         return decay, no_decay
 
     def temperature(self):
