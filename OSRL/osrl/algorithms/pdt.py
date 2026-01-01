@@ -179,6 +179,20 @@ class PDT(nn.Module):
                                            )
         
         self.actor_lag = WeightsNet(self.state_dim + 1, 256, 1, activation=nn.ReLU)
+
+        # Initialize last layers of remaining nets with small weights
+        for i, aux_net in enumerate([self.actor_lag, 
+                                     self.cost_critic,
+                                     self.critic]):
+            if i == 0:
+                last_layers = [ aux_net.net[-2] ]
+            else:
+                last_layers = [ net[-2] for net in aux_net.q_nets ]
+
+            for layer in last_layers:
+                torch.nn.init.uniform_(layer.weight, -3e-3, 3e-3)
+                torch.nn.init.uniform_(layer.bias, -3e-3, 3e-3)
+
         
         self.critic_target = deepcopy(self.critic)
         self.critic_target.eval()
