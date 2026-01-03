@@ -147,7 +147,7 @@ def train(args: PDTTrainConfig):
                          seq_len=args.seq_len,
                          device=args.device)
 
-    max_cost = min(args.max_cost + 1, 101)
+    max_cost = min(args.max_cost + 1, 125)
     ct = lambda x: max_cost - x if args.linear else 1 / (x + 10)
 
     dataset = SequenceDataset(
