@@ -16,7 +16,7 @@ name: pdt_sweep_bullet
 project: OSRL
 parameters:
   eta:
-    values: [1.0, 3.0, 5.0, 8.0]
+    values: [1.0, 3.0, 5.0]
   seed:
     values: [0, 10]
   update_steps:

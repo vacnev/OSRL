@@ -157,7 +157,7 @@ class PDTDroneCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 300
-    eta: float = 3.0
+    eta: float = 5.0
     # training params
     task: str = "OfflineDroneCircle-v0"
     max_cost: int = 100
@@ -196,7 +196,7 @@ class PDTAntCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 500
-    eta: float = 3.0
+    eta: float = 5.0
     # training params
     task: str = "OfflineAntCircle-v0"
     max_cost: int = 200
