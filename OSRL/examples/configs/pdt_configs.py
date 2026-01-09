@@ -666,7 +666,7 @@ class PDTEasyDenseConfig(PDTTrainConfig):
     max_cost: int = 85
     update_steps: int = 200_000
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((300.0,), 10), ((350.0,), 20), ((400.0,), 40))
+                          ...] = (((300.0, 250.0, 200.0), 10), ((350.0, 300.0, 250.0), 20), ((400.0, 350.0, 300.0), 40))
     # augmentation param
     deg: int = 2
     max_reward: float = 500.0
@@ -704,7 +704,7 @@ class PDTMediumMeanConfig(PDTTrainConfig):
     max_cost: int = 50
     update_steps: int = 200_000
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((300.0,), 10), ((300.0,), 20), ((300.0,), 40))
+                          ...] = (((300.0, 250.0, 200.0), 10), ((300.0, 250.0, 200.0), 20), ((300.0, 250.0, 200.0), 40))
     # augmentation param
     deg: int = 0
     max_reward: float = 300.0
@@ -742,7 +742,7 @@ class PDTHardSparseConfig(PDTTrainConfig):
     max_cost: int = 85
     update_steps: int = 200_000
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((300.0,), 10), ((350.0,), 20), ((400.0,), 40))
+                          ...] = (((300.0, 250.0, 200.0), 10), ((350.0, 300.0, 250.0), 20), ((400.0, 350.0, 300.0), 40))
     # augmentation param
     deg: int = 1
     max_reward: float = 500.0

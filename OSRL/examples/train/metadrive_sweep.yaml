@@ -1,0 +1,24 @@
+command:
+  - nice
+  - -n
+  - 19
+  - python3
+  - -m
+  - examples.train.train_bearl
+  - --project
+  - OSRL
+  - --device
+  - cpu
+  - ${args}
+method: grid
+name: bearl_metadrive
+project: OSRL
+parameters:
+  task:
+    values: ["OfflineMetadrive-easydense-v0", "OfflineMetadrive-mediummean-v0", "OfflineMetadrive-hardsparse-v0"]
+  seed:
+    values: [0, 10, 20, 30, 40]
+  cost_limit:
+    values: [10.0, 20.0, 40.0]
+  update_steps:
+    value: 200_000

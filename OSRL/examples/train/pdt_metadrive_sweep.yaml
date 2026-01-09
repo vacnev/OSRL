@@ -1,0 +1,25 @@
+program: examples.train.train_pdt
+command:
+  - nice
+  - -n
+  - 10
+  - python3
+  - -m
+  - ${program}
+  - --project
+  - OSRL
+  - --device
+  - cuda
+  - ${args}
+method: grid
+name: pdt_sweep_metadrive
+project: OSRL
+parameters:
+  eta:
+    values: [1.0, 3.0, 5.0]
+  seed:
+    values: [0, 10]
+  update_steps:
+    value: 200_000
+  task:
+    values: ["OfflineMetadrive-easydense-v0", "OfflineMetadrive-mediummean-v0", "OfflineMetadrive-hardsparse-v0"]
