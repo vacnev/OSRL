@@ -22,4 +22,4 @@ parameters:
   update_steps:
     value: 200_000
   task:
-    values: ["OfflineMetadrive-easydense-v0", "OfflineMetadrive-mediummean-v0", "OfflineMetadrive-hardsparse-v0"]
+    values: ["OfflineMetadrive-harddense-v0", "OfflineMetadrive-hardmean-v0", "OfflineMetadrive-hardsparse-v0"]

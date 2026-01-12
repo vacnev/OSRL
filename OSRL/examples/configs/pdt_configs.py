@@ -723,7 +723,7 @@ class PDTMediumDenseConfig(PDTTrainConfig):
     max_cost: int = 50
     update_steps: int = 200_000
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((300.0,), 10), ((300.0,), 20), ((300.0,), 40))
+                          ...] = (((300.0, 250.0, 200.0), 10), ((300.0, 250.0, 200.0), 20), ((300.0, 250.0, 200.0), 40))
     # augmentation param
     deg: int = 0
     max_reward: float = 300.0
@@ -737,6 +737,7 @@ class PDTHardSparseConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
+    c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
     # training params
     task: str = "OfflineMetadrive-hardsparse-v0"
     max_cost: int = 85
@@ -756,12 +757,13 @@ class PDTHardMeanConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
+    c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
     # training params
     task: str = "OfflineMetadrive-hardmean-v0"
     max_cost: int = 85
     update_steps: int = 200_000
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((300.0,), 10), ((350.0,), 20), ((400.0,), 40))
+                          ...] = (((300.0, 250.0, 200.0), 10), ((350.0, 300.0, 250.0), 20), ((400.0, 350.0, 300.0), 40))
     # augmentation param
     deg: int = 1
     max_reward: float = 500.0
@@ -775,12 +777,13 @@ class PDTHardDenseConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
+    c_hidden_sizes: Tuple[int, ...] = (256, 256, 256)
     # training params
     task: str = "OfflineMetadrive-harddense-v0"
     max_cost: int = 85
     update_steps: int = 200_000
     target_returns: Tuple[Tuple[Tuple[float, ...], float],
-                          ...] = (((300.0,), 10), ((350.0,), 20), ((400.0,), 40))
+                          ...] = (((300.0, 250.0, 200.0), 10), ((350.0, 300.0, 250.0), 20), ((400.0, 350.0, 300.0), 40))
     # augmentation param
     deg: int = 1
     max_reward: float = 500.0
