@@ -29,7 +29,7 @@ To train a PDT agent, simply run:
 cd OSRL
 python3 -m examples.train.train_pdt --device cuda --task <env_name> --param1 <args1> ... 
 ```
-By default, the config file and the logs during training will be written to `logs\` folder and the training plots can be viewed online using Wandb.
+By default, the config file and the logs during training will be written to `logs/` folder and the training plots can be viewed online using Wandb.
 The default parameters can be found in `OSRL/examples/configs/pdt_configs.py`.
 
 ## Evaluation
