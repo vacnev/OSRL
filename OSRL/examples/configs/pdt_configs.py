@@ -86,7 +86,7 @@ class PDTTrainConfig:
     loss_cost_weight: float = 0.02
     loss_state_weight: float = 0
     cost_reverse: bool = False
-    eta: float = 5.0
+    eta: float = 10.0
     max_lag: float = 5.0
     min_lag: float = -20.0
     # pf only mode param
@@ -157,7 +157,7 @@ class PDTDroneCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 300
-    eta: float = 5.0
+    # eta: float = 5.0
     # training params
     task: str = "OfflineDroneCircle-v0"
     max_cost: int = 100
@@ -196,7 +196,7 @@ class PDTAntCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 500
-    eta: float = 5.0
+    # eta: float = 5.0
     # training params
     task: str = "OfflineAntCircle-v0"
     max_cost: int = 200
@@ -233,7 +233,7 @@ class PDTBallCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 200
-    eta: float = 5.0
+    # eta: float = 5.0
     # training params
     task: str = "OfflineBallCircle-v0"
     max_cost: int = 80
@@ -252,7 +252,7 @@ class PDTCarButton1Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 1.0
+    # eta: float = 1.0
     # training params
     task: str = "OfflineCarButton1Gymnasium-v0"
     max_cost: int = 250
@@ -270,7 +270,7 @@ class PDTCarButton2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 8.0
+    # eta: float = 8.0
     # training params
     task: str = "OfflineCarButton2Gymnasium-v0"
     max_cost: int = 300
@@ -322,7 +322,7 @@ class PDTCarGoal1Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 1.0
+    # eta: float = 1.0
     # training params
     task: str = "OfflineCarGoal1Gymnasium-v0"
     max_cost: int = 120
@@ -340,7 +340,7 @@ class PDTCarGoal2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 1.0
+    # eta: float = 1.0
     # training params
     task: str = "OfflineCarGoal2Gymnasium-v0"
     max_cost: int = 200
@@ -358,7 +358,7 @@ class PDTCarPush1Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 1.0
+    # eta: float = 1.0
     # training params
     task: str = "OfflineCarPush1Gymnasium-v0"
     max_cost: int = 200
@@ -376,7 +376,7 @@ class PDTCarPush2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 8.0
+    # eta: float = 8.0
     # training params
     task: str = "OfflineCarPush2Gymnasium-v0"
     max_cost: int = 250
@@ -548,7 +548,7 @@ class PDTHalfCheetahVelocityConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 5.0
+    # eta: float = 5.0
     # training params
     task: str = "OfflineHalfCheetahVelocityGymnasium-v1"
     max_cost: int = 250
@@ -567,7 +567,7 @@ class PDTHopperVelocityConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 1.0
+    # eta: float = 1.0
     # training params
     task: str = "OfflineHopperVelocityGymnasium-v1"
     max_cost: int = 250
@@ -586,7 +586,7 @@ class PDTSwimmerVelocityConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    eta: float = 1.0
+    # eta: float = 1.0
     # training params
     task: str = "OfflineSwimmerVelocityGymnasium-v1"
     max_cost: int = 200
