@@ -11,8 +11,24 @@ from typing import Optional, List
 import pyrallis
 from pyrallis import field
 
+PDT_TARGETS= {
+    "OfflineCarCircle-v0": [[10, 20, 40], [[450.0, 400.0, 350.0], [500.0, 450.0, 400.0], [550.0, 500.0, 450.0]]],
+    "OfflineDroneCircle-v0": [[10, 20, 40], [[700.0, 650.0, 600.0], [750.0, 700.0, 650.0], [800.0, 750.0, 700.0]]],
+    "OfflineAntCircle-v0": [[10, 20, 40], [[300.0, 250.0, 200.0], [350.0, 300.0, 250.0], [400.0, 350.0, 300.0]]],
+    "OfflineBallCircle-v0": [[10, 20, 40], [[700.0, 650.0, 600.0], [750.0, 700.0, 650.0], [800.0, 750.0, 700.0]]],
+    "OfflineCarButton1Gymnasium-v0": [[40, 60, 80, 120], [[20.0, 15.0, 10.0], [20.0, 15.0, 10.0], [20.0, 15.0, 10.0], [20.0, 15.0, 10.0]]],
+    "OfflineCarButton2Gymnasium-v0": [[40, 60, 80, 120], [[20.0, 15.0, 10.0], [20.0, 15.0, 10.0], [20.0, 15.0, 10.0], [20.0, 15.0, 10.0]]],
+    "OfflineCarGoal1Gymnasium-v0": [[40, 60, 80, 120], [[40.0, 35.0, 25.0], [40.0, 35.0, 25.0], [40.0, 35.0, 25.0], [40.0, 35.0, 25.0]]],
+    "OfflineCarGoal2Gymnasium-v0": [[40, 60, 80, 120], [[30.0, 25.0, 20.0], [30.0, 25.0, 20.0], [30.0, 25.0, 20.0], [30.0, 25.0, 20.0]]],
+    "OfflineCarPush1Gymnasium-v0": [[40, 60, 80, 120], [[15.0, 12.0, 10.0], [15.0, 12.0, 10.0], [15.0, 12.0, 10.0], [15.0, 12.0, 10.0]]],
+    "OfflineCarPush2Gymnasium-v0": [[40, 60, 80, 120], [[12.0, 10.0, 8.0], [12.0, 10.0, 8.0], [12.0, 10.0, 8.0], [12.0, 10.0, 8.0]]],
+    "OfflineHalfCheetahVelocityGymnasium-v1": [[20, 40, 80], [[3000.0, 2800.0, 2600.0], [3000.0, 2800.0, 2600.0], [3000.0, 2800.0, 2600.0]]],
+    "OfflineHopperVelocityGymnasium-v1": [[20, 40, 80], [[2000.0, 1750.0, 1500.0], [2000.0, 1750.0, 1500.0], [2000.0, 1750.0, 1500.0]]],
+    "OfflineSwimmerVelocityGymnasium-v1": [[20, 40, 80], [[200.0, 180.0, 160.0], [200.0, 180.0, 160.0], [200.0, 180.0, 160.0]]],
+}
+
 # Regex patterns for different algorithms
-pdt_pattern = re.compile(r'Target reward\s*\((.+?)\),\s*real reward ([-\d.]+), normalized reward: ([-\d.]+); target cost ([-\d.]+), real cost ([-\d.]+), normalized cost: ([-\d.]+)')
+pdt_pattern = re.compile(r'Target reward ([-\d.]+),\s*real reward ([-\d.]+),\s*normalized reward: ([-\d.]+);\s*target cost ([-\d.]+),\s*real cost ([-\d.]+),\s*normalized cost: ([-\d.]+)')
 ccac_pattern = re.compile(r'Eval reward ([-\d.]+),\s*normalized reward: ([-\d.]+);\s*target cost ([-\d.]+),\s*real cost ([-\d.]+),\s*normalized cost: ([-\d.]+)')
 cdt_pattern = re.compile(r'Target reward ([-\d.]+),\s*real reward ([-\d.]+),\s*normalized reward: ([-\d.]+);\s*target cost ([-\d.]+),\s*real cost ([-\d.]+),\s*normalized cost: ([-\d.]+)')
 
@@ -136,6 +152,10 @@ def eval_batch(args: EvalBatchConfig):
                     cmd += ['--use_verification', str(args.use_verification).lower()]
                 if args.infer_q is not None:
                     cmd += ['--infer_q', str(args.infer_q).lower()]
+                targets = PDT_TARGETS[env_name]
+                costs, rets = targets
+                cmd += ['--returns'] + [str(rets)]
+                cmd += ['--costs'] + [str(costs)]
 
             # Add cost limits for CCAC
             if args.algo_name.lower() == 'ccac' and args.cost_limits is not None:
