@@ -86,7 +86,7 @@ class PDTTrainConfig:
     loss_cost_weight: float = 0.02
     loss_state_weight: float = 0
     cost_reverse: bool = False
-    eta: float = 10.0
+    eta: float = 3.0
     max_lag: float = 5.0
     min_lag: float = -20.0
     # pf only mode param
@@ -157,7 +157,7 @@ class PDTDroneCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 300
-    # eta: float = 5.0
+    eta: float = 5.0
     # training params
     task: str = "OfflineDroneCircle-v0"
     max_cost: int = 100
@@ -196,7 +196,7 @@ class PDTAntCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 500
-    # eta: float = 5.0
+    eta: float = 3.0
     # training params
     task: str = "OfflineAntCircle-v0"
     max_cost: int = 200
@@ -233,7 +233,7 @@ class PDTBallCircleConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 200
-    # eta: float = 5.0
+    eta: float = 5.0
     # training params
     task: str = "OfflineBallCircle-v0"
     max_cost: int = 80
@@ -252,11 +252,11 @@ class PDTCarButton1Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 1.0
+    eta: float = 3.0
     # training params
     task: str = "OfflineCarButton1Gymnasium-v0"
     max_cost: int = 250
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 60), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 45.0
@@ -270,11 +270,11 @@ class PDTCarButton2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 8.0
+    eta: float = 1.0
     # training params
     task: str = "OfflineCarButton2Gymnasium-v0"
     max_cost: int = 300
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 60), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((20.0, 15.0, 10.0), 40), ((20.0, 15.0, 10.0), 80), ((20.0, 15.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 50.0
@@ -322,11 +322,11 @@ class PDTCarGoal1Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 1.0
+    eta: float = 1.0
     # training params
     task: str = "OfflineCarGoal1Gymnasium-v0"
     max_cost: int = 120
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((40.0, 35.0, 25.0), 40), ((40.0, 35.0, 25.0), 60), ((40.0, 35.0, 25.0), 80), ((40.0, 35.0, 25.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((40.0, 35.0, 25.0), 40), ((40.0, 35.0, 25.0), 80), ((40.0, 35.0, 25.0), 120))
     # augmentation param
     deg: int = 1
     max_reward: float = 50.0
@@ -340,11 +340,11 @@ class PDTCarGoal2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 1.0
+    eta: float = 1.0
     # training params
     task: str = "OfflineCarGoal2Gymnasium-v0"
     max_cost: int = 200
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((30.0, 25.0, 20.0), 40), ((30.0, 25.0, 20.0), 60), ((30.0, 25.0, 20.0), 80), ((30.0, 25.0, 20.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((30.0, 25.0, 20.0), 40), ((30.0, 25.0, 20.0), 80), ((30.0, 25.0, 20.0), 120))
     # augmentation param
     deg: int = 1
     max_reward: float = 35.0
@@ -358,11 +358,11 @@ class PDTCarPush1Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 1.0
+    eta: float = 1.0
     # training params
     task: str = "OfflineCarPush1Gymnasium-v0"
     max_cost: int = 200
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((15.0, 12.0, 10.0), 40), ((15.0, 12.0, 10.0), 60), ((15.0, 12.0, 10.0), 80), ((15.0, 12.0, 10.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((15.0, 12.0, 10.0), 40), ((15.0, 12.0, 10.0), 80), ((15.0, 12.0, 10.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 20.0
@@ -376,11 +376,11 @@ class PDTCarPush2Config(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 8.0
+    eta: float = 5.0
     # training params
     task: str = "OfflineCarPush2Gymnasium-v0"
     max_cost: int = 250
-    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((12.0, 10.0, 8.0), 40), ((12.0, 10.0, 8.0), 60), ((12.0, 10.0, 8.0), 80), ((12.0, 10.0, 8.0), 120))
+    target_returns: Tuple[Tuple[Tuple[float, ...], float], ...] = (((12.0, 10.0, 8.0), 40), ((12.0, 10.0, 8.0), 80), ((12.0, 10.0, 8.0), 120))
     # augmentation param
     deg: int = 0
     max_reward: float = 15.0
@@ -548,7 +548,7 @@ class PDTHalfCheetahVelocityConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 5.0
+    eta: float = 3.0
     # training params
     task: str = "OfflineHalfCheetahVelocityGymnasium-v1"
     max_cost: int = 250
@@ -567,7 +567,7 @@ class PDTHopperVelocityConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 1.0
+    eta: float = 5.0
     # training params
     task: str = "OfflineHopperVelocityGymnasium-v1"
     max_cost: int = 250
@@ -586,7 +586,7 @@ class PDTSwimmerVelocityConfig(PDTTrainConfig):
     # model params
     seq_len: int = 10
     episode_len: int = 1000
-    # eta: float = 1.0
+    eta: float = 3.0
     # training params
     task: str = "OfflineSwimmerVelocityGymnasium-v1"
     max_cost: int = 200
