@@ -20,8 +20,10 @@ parameters:
             OfflineCarButton1Gymnasium-v0, OfflineCarButton2Gymnasium-v0, OfflineCarPush1Gymnasium-v0, OfflineCarPush2Gymnasium-v0, OfflineCarGoal1Gymnasium-v0, OfflineCarGoal2Gymnasium-v0]
   # eta:
   #   values: [1.0, 3.0, 5.0]
+  cost_limit:
+    values: [1]
   seed:
-    values: [20, 30, 40]
+    values: [0, 10, 20, 30, 40]
   update_steps:
     value: 200_000
   

@@ -15,10 +15,12 @@ method: grid
 name: pdt_sweep_bullet
 project: OSRL
 parameters:
-  eta:
-    values: [3.0]
+  # eta:
+  #   values: [3.0]
+  cost_limit:
+    values: [1]
   seed:
-    values: [20, 30, 40]
+    values: [0, 10, 20, 30, 40]
   update_steps:
     value: 100_000
   task:

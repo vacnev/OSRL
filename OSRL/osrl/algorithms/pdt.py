@@ -704,6 +704,7 @@ class PDTTrainer:
         # PF improvement
 
         qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
+        batch_qr_preds, batch_qc_preds = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
 
         # log_lambd_raw = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
         log_lambd_raw = self.model.actor_lag(sc).squeeze(-1)  # [batch_size, seq_len]
@@ -722,7 +723,13 @@ class PDTTrainer:
         qc_loss = lambd_detach * (qc_preds - costs_return)
         q_loss = -qr_preds + qc_loss
         q_loss = q_loss[mask > 0]
-        pf_loss = q_loss.mean() / (q_loss.abs().mean().detach() + 1e-8)
+
+        batch_qc_loss = lambd_detach * (batch_qc_preds - costs_return)
+        batch_q_loss = -batch_qr_preds + batch_qc_loss
+        batch_q_loss = batch_q_loss[mask > 0]
+
+        # pf_loss = q_loss.mean() / (q_loss.abs().mean().detach() + 1e-8)
+        pf_loss = q_loss.mean() / (batch_q_loss.abs().mean().detach() + 1e-8)
         
         loss += self.eta * pf_loss
 
