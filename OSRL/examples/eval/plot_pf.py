@@ -15,9 +15,9 @@ def plot_pf():
             'OfflineSwimmerVelocityGymnasium-v1',
             ]
 
-    algos = ['cost-10_ccac', 'cost-5_cdt', 'cost-1_pdt', 'trebi']
+    algos = ['trebi', 'cost-10_ccac', 'cost-5_cdt', 'cost-1_pdt']
 
-    colors = ['blue', 'green', 'red', 'orange', 'purple']
+    colors = ['orange', 'blue', 'green', 'red']
     
     # nice color scheme
 
@@ -30,8 +30,13 @@ def plot_pf():
     axis_fontsize = 8
     title_fontsize = 8
 
+    # ticks for axes, + padding (how close to the axis)
     label_ticksize = 6
-    tick_padding = -2.5
+    tick_padding = -3.0
+
+    # axis limits
+    xlim_vel = (20, 60)
+    xlim_circle = (10, 50)
 
 
 
@@ -40,7 +45,7 @@ def plot_pf():
 
     for row in axes:
         for ax in row:
-            ax.tick_params(axis='both', labelsize=label_ticksize, pad=tick_padding)
+            ax.tick_params(axis='both', which='major', labelsize=label_ticksize, pad=tick_padding)
 
     for i, env in enumerate(envs):
         env_clean = env.replace('Offline','').split('-')[0].replace("VelocityGymnasium", "-Vel")
@@ -58,15 +63,13 @@ def plot_pf():
 
             """
                 EMA:
-            """
             smooth_alpha = 0.3
             df['reward_mean'] = df['reward_mean'].ewm(alpha=smooth_alpha, adjust=False).mean()
             df['cost_mean']   = df['cost_mean'].ewm(alpha=smooth_alpha, adjust=False).mean()
             df['reward_std']  = df['reward_std'].ewm(alpha=smooth_alpha, adjust=False).mean()
             df['cost_std']    = df['cost_std'].ewm(alpha=smooth_alpha, adjust=False).mean()
-
             """
-                Window mean
+
             window_size = 10
             df['reward_mean'] = df['reward_mean'].rolling(window=window_size,
                                                           min_periods=1).mean()
@@ -76,6 +79,7 @@ def plot_pf():
                                                         min_periods=1).mean()
             df['cost_std']    = df['cost_std'].rolling(window=window_size,
                                                        min_periods=1).mean()
+            """
             """
 
             # transparency of error bars
@@ -107,11 +111,14 @@ def plot_pf():
                 color=color, alpha=alpha
             )
 
+            # set ticks based on env
+
+
             if j == 0:
                 axes[1, i].plot(
                     df['target_cost'], df['target_cost'],
                     'k--',
-                    label='Cost budget == Eval cost' if i == 0 else ""
+                    label='Cost budget = Eval cost' if i == 0 else ""
                 )
 
         # Column titles (envs)
@@ -126,22 +133,28 @@ def plot_pf():
     # Row labels
     handles, labels = axes[0, 0].get_legend_handles_labels()
     handles2, labels2 = axes[1, 0].get_legend_handles_labels()
+
     axes[0, 0].set_ylabel('Eval reward', fontsize=title_fontsize)
     axes[1, 0].set_ylabel('Eval cost', fontsize=title_fontsize)
-
-    # X labels
-    #for i in range(len(envs)):
-        #axes[1, i].set_xlabel('Cost budget', fontsize=16)
-
+        
     # shared x-axis label
     fig.text(0.48, 0.0, 'Cost budget', ha='center', fontsize=title_fontsize)
 
     # Legend
     unique = dict(zip(labels + labels2, handles + handles2))
 
+
+    # set x limits
+
+    for i, env in enumerate(envs):
+        if 'Velocity' in env:
+            axes[1, i].set_xlim(xlim_vel)
+            axes[1, i].set_ylim(5, xlim_vel[1] + 20)
+        else:
+            axes[1, i].set_xlim(xlim_circle)
+            axes[1, i].set_ylim(5, xlim_vel[1] + 20)
+
     # Global legend below the figure
-
-
     # rename keys in unique, remove underscores
     unique_renamed = {}
     for key in unique.keys():
@@ -157,24 +170,24 @@ def plot_pf():
         handles=list(unique.values()),
         labels=list(unique.keys()),
         loc='upper center',
-        ncol=len(algos),               # one column per algorithm
+        ncol=len(algos) + 1,               # one column per algorithm
         frameon=True,
         fancybox=True,
         framealpha=0.9,                # semi-transparent box
-        columnspacing=1.0,             # spacing between columns
-        borderpad=0.75,                # padding inside the box
+        columnspacing=1.5,             # spacing between columns
+        borderpad=1.0,                # padding inside the box
         fontsize=8
     )
-
     fig.subplots_adjust(
         left=0,    # reduce left margin
         right=0.95,   # reduce right margin
         top=0.78,
         bottom=0.10,  # make space for shared x-label
-        hspace=0.1,  # vertical spacing between rows
+        hspace=0.25,  # vertical spacing between rows
         wspace=0.25   # horizontal spacing between columns
     )
-    plt.savefig('pf_plt.svg', bbox_inches='tight')
+    plt.savefig('pf_plt.pdf', bbox_inches='tight')
+
 
 if __name__ == '__main__':
     plot_pf()
