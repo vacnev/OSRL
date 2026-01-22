@@ -15,29 +15,28 @@ def plot_pf():
             'OfflineSwimmerVelocityGymnasium-v1',
             ]
 
-    algos = ['trebi', 'cost-10_ccac', 'cost-5_cdt', 'cost-1_pdt']
+    algos = ['cost-10_ccac', 'trebi', 'cost-5_cdt', 'cost-1_pdt']
 
-    colors = ['orange', 'blue', 'green', 'red']
+    colors = sns.color_palette("Set1", n_colors=len(algos))
     
     # nice color scheme
 
     """
         SETUP FIGURE HERE
     """
-    fig_width = 8
+    fig_width = 10
     fig_height = 2.5
 
     axis_fontsize = 8
     title_fontsize = 8
 
     # ticks for axes, + padding (how close to the axis)
-    label_ticksize = 6
+    label_ticksize = 5
     tick_padding = -3.0
 
     # axis limits
     xlim_vel = (20, 60)
     xlim_circle = (10, 50)
-
 
 
     fig, axes = plt.subplots(2, len(envs), figsize=(fig_width, fig_height), 
@@ -79,11 +78,11 @@ def plot_pf():
                                                         min_periods=1).mean()
             df['cost_std']    = df['cost_std'].rolling(window=window_size,
                                                        min_periods=1).mean()
-            """
-            """
 
+            """
+            """
             # transparency of error bars
-            alpha = 0.2
+            alpha = 0.18
 
             # ---------- Reward row (row 0) ----------
             axes[0, i].plot(
@@ -95,6 +94,7 @@ def plot_pf():
                 df['target_cost'],
                 df['reward_mean'] - df['reward_std'],
                 df['reward_mean'] + df['reward_std'],
+                linewidth=0.0,
                 color=color, alpha=alpha
             )
 
@@ -108,17 +108,17 @@ def plot_pf():
                 df['target_cost'],
                 df['cost_mean'] - df['cost_std'],
                 df['cost_mean'] + df['cost_std'],
+                linewidth=0.0,
                 color=color, alpha=alpha
             )
 
-            # set ticks based on env
-
-
+        
             if j == 0:
                 axes[1, i].plot(
                     df['target_cost'], df['target_cost'],
                     'k--',
-                    label='Cost budget = Eval cost' if i == 0 else ""
+                    label='Cost budget = Eval cost' if i == 0 else "",
+                    linewidth=0.8 # width of the dashed line
                 )
 
         # Column titles (envs)
@@ -138,7 +138,7 @@ def plot_pf():
     axes[1, 0].set_ylabel('Eval cost', fontsize=title_fontsize)
         
     # shared x-axis label
-    fig.text(0.48, 0.0, 'Cost budget', ha='center', fontsize=title_fontsize)
+    fig.text(0.50, 0.0, 'Cost budget', ha='center', fontsize=title_fontsize)
 
     # Legend
     unique = dict(zip(labels + labels2, handles + handles2))
@@ -174,19 +174,23 @@ def plot_pf():
         frameon=True,
         fancybox=True,
         framealpha=0.9,                # semi-transparent box
+        handlelength=3.3,              # length of legend lines
         columnspacing=1.5,             # spacing between columns
-        borderpad=1.0,                # padding inside the box
+        borderpad=0.5,                # padding inside the box
         fontsize=8
     )
+
+    # Thickness of the example lines
+    for line in legend.get_lines():
+        line.set_linewidth(3) 
+
+    # Shuffle margins around
     fig.subplots_adjust(
-        left=0,    # reduce left margin
-        right=0.95,   # reduce right margin
-        top=0.78,
-        bottom=0.10,  # make space for shared x-label
+        top=0.8,
         hspace=0.25,  # vertical spacing between rows
         wspace=0.25   # horizontal spacing between columns
     )
-    plt.savefig('pf_plt.pdf', bbox_inches='tight')
+    plt.savefig('pf_plt.svg', bbox_inches='tight')
 
 
 if __name__ == '__main__':
