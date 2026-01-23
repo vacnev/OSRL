@@ -12,13 +12,13 @@ import pyrallis
 from pyrallis import field
 
 TARGETS= {
-    "OfflineCarCircle-v0": [[10, 50], [450.0, 550.0]],
-    "OfflineDroneCircle-v0": [[10, 50], [700.0, 800.0]],
-    "OfflineAntCircle-v0": [[10, 50], [300.0, 400.0]],
-    "OfflineBallCircle-v0": [[10, 50], [700.0, 800.0]],
-    "OfflineHalfCheetahVelocityGymnasium-v1": [[20, 80], [3000.0, 3000.0]],
-    "OfflineHopperVelocityGymnasium-v1": [[20, 80], [2000.0, 2000.0]],
-    "OfflineSwimmerVelocityGymnasium-v1": [[20, 80], [200.0, 200.0]],
+    "OfflineCarCircle-v0": [[1, 20], [450.0, 550.0]],
+    "OfflineDroneCircle-v0": [[1, 20], [700.0, 800.0]],
+    "OfflineAntCircle-v0": [[1, 20], [300.0, 400.0]],
+    "OfflineBallCircle-v0": [[1, 20], [700.0, 800.0]],
+    "OfflineHalfCheetahVelocityGymnasium-v1": [[1, 30], [3000.0, 3000.0]],
+    "OfflineHopperVelocityGymnasium-v1": [[1, 30], [2000.0, 2000.0]],
+    "OfflineSwimmerVelocityGymnasium-v1": [[1, 30], [200.0, 200.0]],
 }
 
 BULLET = ["OfflineCarCircle-v0", "OfflineAntCircle-v0", "OfflineDroneCircle-v0", "OfflineBallCircle-v0"]
@@ -122,6 +122,7 @@ def eval_pf(args: PFConfig):
         folder = args.folder
 
     for env_name in envs:
+
         base_path = f'logs/{env_name}/{folder}'
 
         os.makedirs(f'results/pf/{env_name}', exist_ok=True)
@@ -156,7 +157,8 @@ def eval_pf(args: PFConfig):
                     cmd += ['--costs'] + [str(cost_list)]
                     if returns_list:
                         if args.algo_name.lower() == 'pdt':
-                            returns_list = [[ret, ret - 50, ret - 100] for ret in returns_list]
+                            delta = 50 if env_name[-1] == "0" else 200
+                            returns_list = [[ret, ret - delta, ret - (2 * delta)] for ret in returns_list]
                             cmd += ['--returns'] + [str(returns_list)]
                         else:
                             cmd += ['--returns'] + [str(returns_list)]
