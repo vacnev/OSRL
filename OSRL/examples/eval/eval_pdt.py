@@ -114,7 +114,7 @@ def eval(args: EvalConfig):
         norm_ret += normalized_ret
         norm_cost += normalized_cost
 
-    print(f"Average normalized reward: {norm_ret / len(cfg['target_returns'])}, average normalized cost: {norm_cost / len(cfg['target_returns'])}")
+    print(f"Average normalized reward: {norm_ret / len(rets)}, average normalized cost: {norm_cost / len(costs)}")
 
 if __name__ == "__main__":
     eval()
