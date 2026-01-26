@@ -423,9 +423,9 @@ class PDT(nn.Module):
             if safe_mask.sum() > 0:
                 qr_preds = qr_preds[safe_mask]
                 action_preds = action_preds[safe_mask]
-            else:
-                idx = torch.argmin(qc_preds)
-                return action_preds[idx.item()]
+            # else:
+            #     idx = torch.argmin(qc_preds)
+            #     return action_preds[idx.item()]
 
         idx = torch.multinomial(F.softmax(qr_preds, dim=-1), 1)
 
