@@ -15,7 +15,7 @@ from osrl.common.net import DiagGaussianActor, TransformerBlock, mlp, EnsembleQC
 
 class PDT(nn.Module):
     """
-    Pareto-regularized constrained Decision Transformer (PDT)
+    Pareto constrained Decision Transformer (PDT)
     
     Args:
         state_dim (int): dimension of the state space.
@@ -423,9 +423,6 @@ class PDT(nn.Module):
             if safe_mask.sum() > 0:
                 qr_preds = qr_preds[safe_mask]
                 action_preds = action_preds[safe_mask]
-            # else:
-            #     idx = torch.argmin(qc_preds)
-            #     return action_preds[idx.item()]
 
         idx = torch.multinomial(F.softmax(qr_preds, dim=-1), 1)
 
@@ -438,7 +435,7 @@ class PDT(nn.Module):
 
 class PDTTrainer:
     """
-    Pareto-regularized Constrained Decision Transformer Trainer
+    Pareto Constrained Decision Transformer Trainer
     
     Args:
         model (PDT): A PDT model to train.
@@ -634,17 +631,9 @@ class PDTTrainer:
             target_qr = torch.cat([target_qr, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
             target_qc = torch.cat([target_qc, torch.zeros(batch_size, 1, device=self.device)], dim=1).detach()
 
-        # target_qr = target_qr.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
-        # target_qc = target_qc.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
-
         # mask out last valid index in each sequence
         mask_ = mask.clone()
         mask_[batch_idxs, last_idxs] = 0
-        # mask_r = mask_.unsqueeze(0).expand_as(current_qrs)  # [num_qr, batch_size, seq_len]
-        # mask_c = mask_.unsqueeze(0).expand_as(current_qcs)  # [num_qc, batch_size, seq_len]
-
-        # critic_loss = F.mse_loss(current_qrs[mask_r > 0], target_qr[mask_r > 0], reduction="none")
-        # cost_critic_loss = F.mse_loss(current_qcs[mask_c > 0], target_qc[mask_c > 0], reduction="none")
 
         critic_loss, cost_critic_loss = 0.0, 0.0
         for i in range(current_qrs.shape[0]):
@@ -705,23 +694,14 @@ class PDTTrainer:
         loss = act_loss + self.cost_weight * cost_loss + self.state_weight * state_loss
 
         # PF improvement
-
         qr_preds, qc_preds = self.model.pred_critics(sc, action_preds_mean) # [batch_size, seq_len]
         batch_qr_preds, batch_qc_preds = self.model.pred_critics(sc, actions) # [batch_size, seq_len]
 
-        # log_lambd_raw = self.model.actor_lag(costs_return.unsqueeze(-1)).squeeze(-1)  # [batch_size, seq_len]
         log_lambd_raw = self.model.actor_lag(sc).squeeze(-1)  # [batch_size, seq_len]
         log_lambd = F.tanh(log_lambd_raw)
         log_lambd = 0.5 * (log_lambd + 1.0) * (self.max_lag - self.min_lag) + self.min_lag
         lambd = torch.exp(log_lambd)
         lambd_detach = lambd.detach()
-
-        # print 10 first
-        if self.step % 1000 == 0:
-            print("costs_return: ", costs_return[:10, 0].detach().cpu().numpy())
-            print("qr_preds: ", qr_preds[:10, 0].detach().cpu().numpy())
-            print("qc_preds: ", qc_preds[:10, 0].detach().cpu().numpy())
-            print("lambd: ", lambd[:10, 0].detach().cpu().numpy())
 
         qc_loss = lambd_detach * (qc_preds - costs_return)
         q_loss = -qr_preds + qc_loss
@@ -731,7 +711,6 @@ class PDTTrainer:
         batch_q_loss = -batch_qr_preds + batch_qc_loss
         batch_q_loss = batch_q_loss[mask > 0]
 
-        # pf_loss = q_loss.mean() / (q_loss.abs().mean().detach() + 1e-8)
         pf_loss = q_loss.mean() / (batch_q_loss.abs().mean().detach() + 1e-8)
         
         loss += self.eta * pf_loss
@@ -745,8 +724,6 @@ class PDTTrainer:
         # update Lagrangian multiplier
         loss_lag = (-(lambd * (qc_preds.detach() - costs_return)))[mask > 0]
         loss_lag = loss_lag.mean()
-        # for param in self.model.actor_lag.parameters():
-        #     loss_lag += 0.01 * torch.norm(param)**2  # L2 regularization
         self.lagrangian_optim.zero_grad()
         loss_lag.backward()
         self.lagrangian_optim.step()

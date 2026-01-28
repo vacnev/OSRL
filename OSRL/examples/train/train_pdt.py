@@ -20,7 +20,6 @@ from osrl.algorithms import PDT, PDTTrainer
 from osrl.common import SequenceDataset
 from osrl.common.exp_util import auto_name, seed_all
 
-# torch.autograd.set_detect_anomaly(True)
 
 @pyrallis.wrap()
 def train(args: PDTTrainConfig):
@@ -118,8 +117,6 @@ def train(args: PDTTrainConfig):
     ).to(args.device)
     print(f"Total parameters: {sum(p.numel() for p in model.parameters())}")
 
-    # model.compile()
-
     def checkpoint_fn():
         return {"model_state": model.state_dict()}
 
@@ -201,22 +198,9 @@ def train(args: PDTTrainConfig):
             b.to(args.device) for b in batch
         ]
         
-        # with torch.cuda.amp.autocast():
         trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
                                costs)
         
-        # with torch.profiler.profile(
-        #     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
-        #     on_trace_ready=torch.profiler.tensorboard_trace_handler('./log_profiler/pdt'),
-        #     record_shapes=True,
-        #     profile_memory=True,
-        #     with_stack=True
-        # ) as prof:
-        #     for _ in range(5):
-        #         prof.step()
-        #         trainer.train_one_step(states, actions, returns, costs_return, time_steps, mask,
-        #                                costs)
-
         # evaluation
         if (step + 1) % args.eval_every == 0 or step == args.update_steps - 1:
             average_reward, average_cost = [], []
@@ -265,10 +249,6 @@ def train(args: PDTTrainConfig):
                 best_safe = safe
                 best_idx = step
                 logger.save_checkpoint(suffix="best")
-
-            # safe halfway model
-            if (step + 1) == args.update_steps // 2:
-                logger.save_checkpoint(suffix="halfway")
 
             logger.store(tab="train", best_idx=best_idx)
             logger.write(step, display=False)
