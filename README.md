@@ -5,7 +5,7 @@ PDT: Pareto Decision Transformer for Offline Safe Reinforcement Learning :raceho
 
 ## Method
 
-**PDT** is an adaptive offline safe RL method that learns the Pareto Frontier directly from offline datasets. It combines the Decision Transformer architecture with dynamic-programming critics to stitch together high-value behaviors while explicitly reasoning about the remaining cost budget at each step. PDT provides zero-shot adaptation to arbitrary constraint thresholds, avoids fragile generative components, and consistently produces safer, higher-reward policies than existing baselines across diverse benchmarks.
+**PDT** is an adaptive offline safe RL method that learns the cost-reward Pareto Frontier directly from offline datasets. It combines the Decision Transformer architecture with dynamic-programming critics to stitch together high-value behaviors while explicitly reasoning about the remaining cost budget at each step. PDT provides zero-shot adaptation to arbitrary constraint thresholds, avoids fragile generative components, and consistently produces safer, higher-reward policies than existing baselines across diverse benchmarks.
 
 ## Installation
 We provide a docker-compose container environment for a convenient, isolated instalation. Please, first build and run the container, then install the packages inside it:
