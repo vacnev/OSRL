@@ -37,16 +37,23 @@ It will load config file from `path_to_model/config.yaml` and model file from `p
 
 ## Reproducibility
 
-To train all PDT models that were evaluated in the paper you can run Wandb sweeps, one for BulletGym and one for SafetyGymnasium:
+To train all PDT models that were evaluated in the paper you can run Wandb sweeps, one for BulletGym and one for SafetyGymnasium, this will also create nice training plots on the Wandb website:
 ``` bash
 cd OSRL
 wandb sweep examples/train/pdt_bullet_sweep.yaml
 wandb sweep examples/train/pdt_gymnasium_sweep.yaml
 ```
 
+If you don't have a Wandb account, you can alternatively run:
+``` bash
+cd OSRL
+python3 examples/train/train_all_pdt.py
+```
+This Python script sequentially trains all the models that are specified in the sweeps.
+
 The trained model will be saved into the `logs/` folder. To evaluate all of the trained models you can simply run:
 ``` bash
-python3 examples/eval/eval_adap.py --algo_name pdt --envs all
+python3 examples/eval/eval_adap.py
 ```
 The results from the evaluation will be saved into the `results/` folder and will correspond to the results reported in the paper.
 
