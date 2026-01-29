@@ -53,7 +53,7 @@ This Python script sequentially trains all the models that are specified in the 
 
 The trained model will be saved into the `logs/` folder. To evaluate all of the trained models you can simply run:
 ``` bash
-python3 examples/eval/eval_adap.py
+python3 examples/eval/eval_all_pdt.py
 ```
 The results from the evaluation will be saved into the `results/` folder and will correspond to the results reported in the paper.
 
