@@ -1,8 +1,5 @@
 program: examples.train.train_pdt
 command:
-  - nice
-  - -n
-  - 10
   - python3
   - -m
   - ${program}
@@ -15,10 +12,8 @@ method: grid
 name: pdt_sweep_bullet
 project: OSRL
 parameters:
-  # qr_weight:
-  #   values: [8.0]
   seed:
-    values: [30, 40]
+    values: [0, 10, 20, 30, 40]
   update_steps:
     value: 100_000
   task:

@@ -1,17 +1,11 @@
 <h1 align="center">
 <br>
-PDT: Pareto-regularized Decision Transformer for Offline Safe Reinforcement Learning :racehorse:
+PDT: Pareto Decision Transformer for Offline Safe Reinforcement Learning :racehorse:
 </h1>
-
-<!-- <p align="center">
-Repo for "<a href="https://openreview.net/forum?id=nrRkAAAufl" target="_blank">Constraint-Conditioned Actor-Critic for Offline Safe Reinforcement Learning</a>" [ICLR 2025]
-</p> -->
-
-<!-- The official implementation of OASIS, a **Data-centric** approach for offline safe RL. -->
 
 ## Method
 
-**PDT** is an adaptive offline safe RL method that learns the Pareto Frontier directly from offline datasets. It combines the Decision Transformer architecture with dynamic-programming critics to stitch together high-value behaviors while explicitly reasoning about the remaining cost budget at each step. PDT provides zero-shot adaptation to arbitrary constraint thresholds, avoids fragile generative components, and consistently produces safer, higher-reward policies than existing baselines across diverse benchmarks.
+**PDT** is an adaptive offline safe RL method that learns the cost-reward Pareto Frontier directly from offline datasets. It combines the Decision Transformer architecture with dynamic-programming critics to stitch together high-value behaviors while explicitly reasoning about the remaining cost budget at each step. PDT provides zero-shot adaptation to arbitrary constraint thresholds, avoids fragile generative components, and consistently produces safer, higher-reward policies than existing baselines across diverse benchmarks.
 
 ## Installation
 We provide a docker-compose container environment for a convenient, isolated instalation. Please, first build and run the container, then install the packages inside it:
@@ -22,7 +16,7 @@ docker exec -it OSRL bash
 bash ./install.sh
 ```
 
-## Training (optional)
+## Training
 
 To train a PDT agent, simply run:
 ``` bash
@@ -34,7 +28,6 @@ The default parameters can be found in `OSRL/examples/configs/pdt_configs.py`.
 
 ## Evaluation
 
-<!-- **The pre-trained models are available [here](https://drive.google.com/drive/folders/1cM7tr5My-wkzl0uxepyb99G_XESTm3TJ?usp=sharing).** -->
 To evaluate a trained PDT agent, simply run:
 ``` bash
 cd OSRL/examples/eval
@@ -42,18 +35,28 @@ python3 eval_pdt.py --path <path_to_model> --eval_episodes <number_of_episodes> 
 ```
 It will load config file from `path_to_model/config.yaml` and model file from `path_to_model/checkpoints/model.pt`, run the number of episodes for each target return and cost threshold, and print the average normalized reward and cost.
 
+## Reproducibility
+
+To train all PDT models that were evaluated in the paper you can run Wandb sweeps, one for BulletGym and one for SafetyGymnasium, this will also create nice training plots on the Wandb website:
+``` bash
+cd OSRL
+wandb sweep examples/train/pdt_bullet_sweep.yaml
+wandb sweep examples/train/pdt_gymnasium_sweep.yaml
+```
+
+If you don't have a Wandb account, you can alternatively run:
+``` bash
+cd OSRL
+python3 examples/train/train_all_pdt.py
+```
+This Python script sequentially trains all the models that are specified in the sweeps.
+
+The trained model will be saved into the `logs/` folder. To evaluate all of the trained models you can simply run:
+``` bash
+python3 examples/eval/eval_all_pdt.py
+```
+The results from the evaluation will be saved into the `results/` folder and will correspond to the results reported in the paper.
+
 ## Github Reference
 - OSRL: https://github.com/liuzuxin/osrl
 - DSRL: https://github.com/liuzuxin/dsrl
-
-<!-- ## Bibtex
-
-If you find our code and paper can help, please consider citing our paper as:
-```
-@inproceedings{guoconstraint,
-  title={Constraint-Conditioned Actor-Critic for Offline Safe Reinforcement Learning},
-  author={Guo, Zijian and Zhou, Weichao and Wang, Shengao and Li, Wenchao},
-  booktitle={The Thirteenth International Conference on Learning Representations}
-}
-
-``` -->

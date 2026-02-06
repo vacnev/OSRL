@@ -30,6 +30,27 @@ def mlp(sizes, activation, output_activation=nn.Identity):
         layers += [layer, act()]
     return nn.Sequential(*layers)
 
+def mlpLN(sizes, activation, output_activation=nn.Identity):
+    """
+    Creates a multi-layer perceptron with the specified sizes and activations.
+
+    Args:
+        sizes (list): A list of integers specifying the size of each layer in the MLP.
+        activation (nn.Module): The activation function to use for all layers except the output layer.
+        output_activation (nn.Module): The activation function to use for the output layer. Defaults to nn.Identity.
+
+    Returns:
+        nn.Sequential: A PyTorch Sequential model representing the MLP.
+    """
+
+    layers = []
+    for j in range(len(sizes) - 1):
+        layer = nn.Linear(sizes[j], sizes[j + 1])
+        if j < len(sizes) - 2:
+            layers += [layer, nn.LayerNorm(sizes[j + 1]), activation()]
+        else:
+            layers += [layer, output_activation()]
+    return nn.Sequential(*layers)
 
 class MLPGaussianPerturbationActor(nn.Module):
     """
@@ -243,7 +264,7 @@ class EnsembleQCritic(nn.Module):
     '''
 
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation=nn.ReLU, 
-                 cost_conditioned=False, num_q=2):
+                 cost_conditioned=False, num_q=2, mode="min"):
         super().__init__()
         assert num_q >= 1, "num_q param should be greater than 1"
         if cost_conditioned:
@@ -256,6 +277,7 @@ class EnsembleQCritic(nn.Module):
                 mlp([obs_dim + act_dim] + list(hidden_sizes) + [1], activation)
                 for i in range(num_q)
             ])
+        self.mode = mode
 
     def forward(self, obs, act=None):
         # Squeeze is critical to ensure value has the right shape.
@@ -268,14 +290,68 @@ class EnsembleQCritic(nn.Module):
     def predict(self, obs, act):
         q_list = self.forward(obs, act)
         qs = torch.stack(q_list, dim=0)  # [num_q, batch_size]
-        return torch.min(qs, dim=0).values, q_list
-        # return torch.mean(qs, dim=0), q_list
+        if self.mode == "mean":
+            return torch.mean(qs, dim=0), q_list
+        elif self.mode == "max":
+            return torch.max(qs, dim=0).values, q_list
+        else:
+            return torch.min(qs, dim=0).values, q_list
 
 
     def loss(self, target, q_list=None):
         losses = [((q - target)**2).mean() for q in q_list]
         return sum(losses)
 
+class EnsembleQCriticLN(nn.Module):
+    '''
+    An ensemble of Q network to address the overestimation issue.
+    
+    Args:
+        obs_dim (int): The dimension of the observation space.
+        act_dim (int): The dimension of the action space.
+        hidden_sizes (List[int]): The sizes of the hidden layers in the neural network.
+        activation (Type[nn.Module]): The activation function to use between layers.
+        num_q (float): The number of Q networks to include in the ensemble.
+    '''
+
+    def __init__(self, obs_dim, act_dim, hidden_sizes, activation=nn.ReLU, 
+                 cost_conditioned=False, num_q=2, mode="min"):
+        super().__init__()
+        assert num_q >= 1, "num_q param should be greater than 1"
+        if cost_conditioned:
+            self.q_nets = nn.ModuleList([
+                mlpLN([obs_dim + act_dim + 1] + list(hidden_sizes) + [1], activation)
+                for i in range(num_q)
+            ])
+        else:
+            self.q_nets = nn.ModuleList([
+                mlpLN([obs_dim + act_dim] + list(hidden_sizes) + [1], activation)
+                for i in range(num_q)
+            ])
+        self.mode = mode
+
+    def forward(self, obs, act=None):
+        # Squeeze is critical to ensure value has the right shape.
+        # Without squeeze, the training stability will be greatly affected!
+        # For instance, shape [3] - shape[3,1] = shape [3, 3] instead of shape [3]
+        data = obs if act is None else torch.cat([obs, act], dim=-1)
+        # return [torch.squeeze(q(data), -1) for q in self.q_nets]
+        return [torch.squeeze(F.softplus(q(data)), -1) for q in self.q_nets]
+
+    def predict(self, obs, act):
+        q_list = self.forward(obs, act)
+        qs = torch.stack(q_list, dim=0)  # [num_q, batch_size]
+        if self.mode == "mean":
+            return torch.mean(qs, dim=0), q_list
+        elif self.mode == "max":
+            return torch.max(qs, dim=0).values, q_list
+        else:
+            return torch.min(qs, dim=0).values, q_list
+
+
+    def loss(self, target, q_list=None):
+        losses = [((q - target)**2).mean() for q in q_list]
+        return sum(losses)
 
 class EnsembleDoubleQCritic(nn.Module):
     '''
@@ -481,10 +557,10 @@ class Classifier(nn.Module):
 
 
 class WeightsNet(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, weight_lim=5):
+    def __init__(self, input_size, hidden_size, output_size, activation=nn.ReLU, weight_lim=5):
         super(WeightsNet, self).__init__()
         self.net = mlp([input_size, hidden_size, 
-                        hidden_size, output_size], nn.ReLU)
+                        hidden_size, output_size], activation)
         
         self.weight_lim = weight_lim
         
@@ -668,8 +744,10 @@ class DiagGaussianActor(nn.Module):
         self.apply(weight_init)
 
     def forward(self, obs):
-        mu, log_std = self.mu(obs), self.log_std(obs)
-        log_std = torch.clamp(log_std, self.log_std_bounds[0], self.log_std_bounds[1])
+        mu, log_std_raw = self.mu(obs), self.log_std(obs)
+        # log_std = torch.clamp(log_std, self.log_std_bounds[0], self.log_std_bounds[1])
+        log_std = F.tanh(log_std_raw)
+        log_std = self.log_std_bounds[0] + 0.5 * (self.log_std_bounds[1] - self.log_std_bounds[0]) * (log_std + 1)
         std = log_std.exp()
         mu = torch.nan_to_num(mu, nan=0.0)
         return Normal(mu, std)

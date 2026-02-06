@@ -97,10 +97,6 @@ def eval(args: EvalConfig):
     ), f"The length of returns {len(rets)} should be equal to costs {len(costs)}!"
     norm_ret, norm_cost = 0, 0
     for target_ret, target_cost in zip(rets, costs):
-    # for target_ret, target_cost in cfg["target_returns"]:
-
-        # for bullet circle pf
-        # target_ret = (target_ret, target_ret - 50, target_ret - 100)
 
         seed_all(cfg["seed"])
         env.set_target_cost(target_cost)
@@ -109,7 +105,7 @@ def eval(args: EvalConfig):
                                              target_cost * cfg["cost_scale"])
         normalized_ret, normalized_cost = env.get_normalized_score(ret, cost)
         print(
-            f"Target reward {target_ret}, real reward {ret}, normalized reward: {normalized_ret}; target cost {target_cost}, real cost {cost}, normalized cost: {normalized_cost}"
+            f"Target reward {target_ret[0]}, real reward {ret}, normalized reward: {normalized_ret}; target cost {target_cost}, real cost {cost}, normalized cost: {normalized_cost}"
         )
         norm_ret += normalized_ret
         norm_cost += normalized_cost

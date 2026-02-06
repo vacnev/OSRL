@@ -44,7 +44,7 @@ class CDTTrainConfig:
     num_workers: int = 8
     # evaluation params
     target_returns: Tuple[Tuple[float, ...],
-                          ...] = ((450.0, 10), (500.0, 20), (550.0, 50))  # reward, cost
+                          ...] = ((450.0, 10), (500.0, 20), (550.0, 40))  # reward, cost
     cost_limit: int = 5
     eval_episodes: int = 10
     eval_every: int = 10_000

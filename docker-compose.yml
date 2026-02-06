@@ -17,6 +17,4 @@ services:
     stdin_open: true
     tty: true
     working_dir: /workspace
-    environment:
-      - DSRL_DATASET_DIR=/workspace/DSRL/datasets
     network_mode: host
